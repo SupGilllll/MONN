@@ -67,7 +67,7 @@ def get_pdbid_to_uniprotid(seq_dict):
 			if pdbbind_mapping_dict[pdbid] not in seq_dict:
 				count += 1
 	print('final pdbid_to_uniprotid', len(pdbid_to_uniprotid))
-	print 'no sequence', count
+	print('no sequence', count)
 	return pdbid_to_uniprotid
 
 def get_pdbid_to_ligand():
@@ -120,7 +120,7 @@ def get_pdbid_to_affinity():
 					print(unit)
 				pdbid_to_measure[pdbid] = measure
 				pdbid_to_value[pdbid] = pvalue
-	print 'count_error not = measurement', count_error
+	print('count_error not = measurement', count_error)
 	return pdbid_to_measure, pdbid_to_value
 
 def get_mol_dict():
@@ -155,7 +155,7 @@ for pdbid in pdbid_to_uniprotid:
 		continue
 	ligand = pdbid_to_ligand[pdbid]
 	if ligand not in mol_dict:
-		print 'ligand', ligand
+		print('ligand', ligand)
 		error_step3 += 1
 		continue
 	inchi = Chem.MolToInchi(mol_dict[ligand])
@@ -164,7 +164,7 @@ for pdbid in pdbid_to_uniprotid:
 	if uniprotid in uniprot_dict:
 		seq = uniprot_dict[uniprotid]
 	else:
-		print 'uniprotid', uniprotid
+		print('uniprotid', uniprotid)
 		error_step4 += 1
 		continue
 	
@@ -176,5 +176,5 @@ for pdbid in pdbid_to_uniprotid:
 fw.close()
 
 #print('fail_step1-4', error_step1, error_step2, error_step3, error_step4)
-print 'count_success', count_success
+print('count_success', count_success)
 

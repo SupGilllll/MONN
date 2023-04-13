@@ -196,7 +196,7 @@ for pdbid in pdbbind_pocket_dict:
 
 print('pdbbind_pocket_dict_final', len(pdbbind_pocket_dict_final))
 print('count_not_in_dataset',count_not_in_dataset)
-print 'count_not_same_seq', count_not_same_seq
-print 'count_not_align', count_not_align
+print('count_not_same_seq', count_not_same_seq)
+print('count_not_align', count_not_align)
 with open('out8_final_pocket_dict','wb') as f:
 	pickle.dump(pdbbind_pocket_dict_final,f,protocol=0)
