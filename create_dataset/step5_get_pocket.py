@@ -11,7 +11,7 @@ def get_seq_dict(pdbid, file_type):
 	#elif os.path.exists('../pdbbind/refined-set/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb'):
 		#structure = p.get_structure(pdbid, '../pdbbind/refined-set/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb')
 	else:
-		print(pdbid)
+		print(pdbid+' file not exist')
 		return None
 	seq_dict = {}
 	for model in structure:
@@ -32,8 +32,9 @@ def get_seq_dict(pdbid, file_type):
 			seq_dict[chain_id] = (seq,id_list)
 	return seq_dict
 
-with open('out1.2_pdbid_list.txt') as f:
-	pdbid_list = [line.strip() for line in f.readlines()]
+with open('./out2_pdbbind_all_datafile.tsv') as f:
+	pdbid_list = [line.strip().split('\t')[0] for line in f.readlines()]
+print('pdbid_list',len(pdbid_list))
 
 pdb_seq_dict = {}
 count_no_seq = 0
@@ -59,6 +60,6 @@ print('count_no_seq', count_no_seq)
 print('count_no_pocket', count_no_pocket)
 print('seq_dict length', len(pdb_seq_dict))
 with open('out5_pocket_dict','wb') as f:
-	pickle.dump(pdb_seq_dict, f, protocol=0)
+	pickle.dump(pdb_seq_dict, f)
 
 

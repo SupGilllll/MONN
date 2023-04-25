@@ -5,11 +5,11 @@ OUTPUT: dataset1: protein-ligand interaction site dict; dataset2: protein-ligand
 
 
 Step1: data downloading
-1) PDBbind data: Download PDBbind (v2018, general set) data  from http://www.pdbbind-cn.org/index.asp. Put the protein-ligand complex data into "./pdbbind_files/", and put the index files into "./pdbbind_index/".
+1) PDBbind data: Download PDBbind (v2020, general set) data  from http://www.pdbbind-cn.org/index.asp. Put the protein-ligand complex data into "./pdbbind_files/", and put the index files into "./pdbbind_index/".
 Note that the complex data was only used for binding pocket extraction.
 
 2) PDB data: Download the SDF file containing the ligand graphs from http://ligand-expo.rcsb.org/ld-download.html. Put the file "Components-pub.sdf" under current folder.
-Run "step1.2_get_wget_list.py" to extract PDB IDs and ligand IDs of all protein-ligand complex from "./pdbbind_index/INDEX_general_PL.2018", and generate the urls into the files "out1.2_pdbbind_wget_complex.txt" and "out1.2_pdbbind_wget_ligand.txt" for wget. This also generates "output1.2_pdbid_list.txt" for PDB ID to UniProt ID mapping.
+Run "step1.2_get_wget_list.py" to extract PDB IDs and ligand IDs of all protein-ligand complex from "./pdbbind_index/INDEX_general_PL.2020", and generate the urls into the files "out1.2_pdbbind_wget_complex.txt" and "out1.2_pdbbind_wget_ligand.txt" for wget. This also generates "output1.2_pdbid_list.txt" for PDB ID to UniProt ID mapping.
 Note that only single ligands with standard PDB ligand IDs will be remained. That is, ligand names like e.g. "5-mer", "SIA-GAL" and "0LU/0LW" will be discarded.
 
 3) Create the path "./pdb_files/", and then use wget to download all .pdb files from PDB:

@@ -16,7 +16,7 @@ def read_fasta():
 
 def get_pdbid_to_ligand():
 	pdbid_to_ligand = {}
-	with open('./pdbbind_index/INDEX_general_PL.2018') as f:
+	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
 		for line in f.readlines():
 			if line[0] != '#':
 				ligand = line.strip().split('(')[1].split(')')[0]
@@ -48,7 +48,7 @@ def get_result_dict():
 				#print('target_name',target_name)
 				seq_target, seq_query, align = '', '', ''
 			else:
-				seq_target += line.split('\t')[1]
+				seq_target += line.strip().split('\t')[1]
 				#print('seq_target',seq_target)
 		elif i%4 == 1:
 			if 'query_name' in line:
@@ -66,7 +66,7 @@ def get_result_dict():
 						query_start = int(item.split(' ')[1])
 				#print('query_start',query_start,'target_start',target_start)
 			else:
-				seq_query += line.split('\t')[1]
+				seq_query += line.strip().split('\t')[1]
 	f.close()
 	return result_dict
 

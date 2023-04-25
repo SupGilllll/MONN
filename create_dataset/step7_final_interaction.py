@@ -16,7 +16,7 @@ def read_fasta():
 	
 def get_pdbid_to_ligand():
 	pdbid_to_ligand = {}
-	with open('./pdbbind_index/INDEX_general_PL.2018') as f:
+	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
 		for line in f.readlines():
 			if line[0] != '#':
 				ligand = line.strip().split('(')[1].split(')')[0]
@@ -48,7 +48,7 @@ def get_result_dict():
 				#print('target_name',target_name)
 				seq_target, seq_query, align = '', '', ''
 			else:
-				seq_target += line.split('\t')[1]
+				seq_target += line.strip().split('\t')[1]
 				#print('seq_target',seq_target)
 		elif i%4 == 1:
 			if 'query_name' in line:
@@ -65,7 +65,7 @@ def get_result_dict():
 					elif item.split(' ')[0] == 'query_begin:':
 						query_start = int(item.split(' ')[1])
 			else:
-				seq_query += line.split('\t')[1]
+				seq_query += line.strip().split('\t')[1]
 	f.close()
 	return result_dict
 
@@ -142,7 +142,7 @@ def get_interact_in_uniprot_seq(pdb_to_uniprot, uniprot_seq, seq_dict, residue_i
 with open('out1.2_pdbid_list.txt') as f:
 	pdbid_list = [line.strip() for line in f.readlines()]
 
-with open('out4_interaction_dict_20191019','rb') as f:
+with open('out4_interaction_dict','rb') as f:
 	interaction_dict_from_pdb = pickle.load(f)
 #print('length of interaction dict', len(interaction_dict_from_pdb))
 
@@ -211,4 +211,4 @@ print('count_no_uniprot_map', count_no_uniprot_map)
 print('count_not_in_uniprot_seq_dict',count_not_in_uniprot_seq_dict)
 
 with open('out7_final_pairwise_interaction_dict','wb') as f:
-	pickle.dump(interaction_dict_from_pdb_final,f,protocol=0)
+	pickle.dump(interaction_dict_from_pdb_final,f)
