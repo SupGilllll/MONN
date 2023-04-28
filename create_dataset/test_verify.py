@@ -1,3 +1,5 @@
+import os 
+os.chdir('/data/zhao/MONN/create_dataset')
 # seen = set()
 # dup = []
 # with open('./out1.6_uniprot_uniprot_mapping.tab') as f:
@@ -203,29 +205,72 @@
 #     for line in list(dict):
 #         f.write(line + '\n')
 
+# import os
+# os.chdir('/data/zhao/MONN/create_dataset')
+# from Bio.PDB import PDBParser
+# def get_mol_from_ligandpdb(ligand):
+# 	if not os.path.exists('./pdb_files/'+ligand+'_ideal.pdb'):
+# 		return None, None, None
+# 	name_order_list = []
+# 	name_to_idx_dict, name_to_element_dict = {}, {}
+# 	p = PDBParser()
+# 	structure = p.get_structure(ligand, './pdb_files/'+ligand+'_ideal.pdb')
+# 	for model in structure:
+# 		for chain in model:
+# 			chain_id = chain.get_id()
+# 			for res in chain:
+# 				if ligand == res.get_resname():
+# 					#print(ligand,res.get_resname(),res.get_full_id())
+# 					for atom in res:
+# 						name_order_list.append(atom.get_id())
+# 						name_to_element_dict[atom.get_id()] = atom.element
+# 						name_to_idx_dict[atom.get_id()] = atom.get_serial_number()-1
+# 	#print('check', name_to_idx_dict.items())
+# 	if len(name_to_idx_dict) == 0:
+# 		return None, None, None
+# 	return name_order_list, name_to_idx_dict, name_to_element_dict
+# a, b, c = get_mol_from_ligandpdb('LXX')
+# print('happy happy happy')
+
+import pickle 
 import os
 os.chdir('/data/zhao/MONN/create_dataset')
-from Bio.PDB import PDBParser
-def get_mol_from_ligandpdb(ligand):
-	if not os.path.exists('./pdb_files/'+ligand+'_ideal.pdb'):
-		return None, None, None
-	name_order_list = []
-	name_to_idx_dict, name_to_element_dict = {}, {}
-	p = PDBParser()
-	structure = p.get_structure(ligand, './pdb_files/'+ligand+'_ideal.pdb')
-	for model in structure:
-		for chain in model:
-			chain_id = chain.get_id()
-			for res in chain:
-				if ligand == res.get_resname():
-					#print(ligand,res.get_resname(),res.get_full_id())
-					for atom in res:
-						name_order_list.append(atom.get_id())
-						name_to_element_dict[atom.get_id()] = atom.element
-						name_to_idx_dict[atom.get_id()] = atom.get_serial_number()-1
-	#print('check', name_to_idx_dict.items())
-	if len(name_to_idx_dict) == 0:
-		return None, None, None
-	return name_order_list, name_to_idx_dict, name_to_element_dict
-a, b, c = get_mol_from_ligandpdb('LXX')
+with open('./out5_pocket_dict', 'rb') as f:
+    dict = pickle.load(f)
 print('happy happy happy')
+
+# from Bio.PDB import PDBParser, Selection
+# from Bio.PDB.Polypeptide import three_to_one
+# from Bio import BiopythonWarning
+# import warnings
+# def get_seq_dict(pdbid, file_type):
+# 	p = PDBParser()
+# 	if os.path.exists('./pdbbind_files/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb'):
+# 		structure = p.get_structure(pdbid, './pdbbind_files/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb')
+# 	#elif os.path.exists('../pdbbind/refined-set/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb'):
+# 		#structure = p.get_structure(pdbid, '../pdbbind/refined-set/'+pdbid+'/'+pdbid+'_'+file_type+'.pdb')
+# 	else:
+# 		print(pdbid+' file not exist')
+# 		return None
+# 	seq_dict = {}
+# 	for model in structure:
+# 		for chain in model:
+# 			chain_id = chain.get_id()
+# 			if chain_id == ' ':
+# 				continue
+# 			seq = ''
+# 			id_list = []
+# 			for res in chain:
+# 				if res.get_id()[0] != ' ':   # remove HETATM ?
+# 					continue
+# 				try:
+# 					seq+=three_to_one(res.get_resname())
+# 				except:
+# 					print('unexpected aa name', res.get_resname())
+# 				print(str(res.get_id()))
+# 				print(str(res.get_id()[1]))
+# 				print(str(res.get_id()[2]))
+# 				id_list.append(str(res.get_id()[1])+str(res.get_id()[2]))
+# 			seq_dict[chain_id] = (seq,id_list)
+# 	return seq_dict
+# dict = get_seq_dict('6mu1','pocket')
