@@ -6,7 +6,7 @@ def read_fasta():
 	f = open('out6.1_target_uniprot_pdb.fasta')
 	for line in f.readlines():
 		if line[0] == '>':
-			pdbid = line.split('_')[0][1:]
+			pdbid = line.strip().split('_')[0][1:]
 			name = line.strip().split('_')[-1]
 		else:
 			seq = line.strip()
@@ -16,19 +16,11 @@ def read_fasta():
 	
 def get_pdbid_to_ligand():
 	pdbid_to_ligand = {}
-	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
+	with open('./out2_pdbbind_all_datafile.tsv') as f:
 		for line in f.readlines():
-			if line[0] != '#':
-				ligand = line.strip().split('(')[1].split(')')[0]
-				if '-mer' in ligand:
-					continue
-				elif '/' in ligand:
-					ligand = ligand.split('/')[0]
-				if len(ligand) != 3:
-					#print(line[:4], ligand)
-					continue
-				pdbid_to_ligand[line[:4]] = ligand
-	#print('pdbid_to_ligand',len(pdbid_to_ligand))
+			pdb_id, ligand_id = line.strip().split('\t')[0], line.strip().split('\t')[2]
+			pdbid_to_ligand[pdb_id] = ligand_id
+	print('pdbid_to_ligand',len(pdbid_to_ligand))
 	return pdbid_to_ligand
 pdbid_to_ligand = get_pdbid_to_ligand()
 	
@@ -94,12 +86,15 @@ def get_target_idx(target_idx_list, query_idx_list, align, target_start, query_s
 
 def get_pdb_to_uniprot_map(result_dict):
 	#pdb_ratio_dict = {}
+	low_ratio = 0
 	pdb_to_uniprot_map_dict = {}
+	print('results_dict', len(result_dict))
 	for name in result_dict:
 		pdbid, chain = name.split('_')
 		seq_target, seq_query, align, target_start, query_start = result_dict[name]
 		ratio = float(align.count('|'))/float(len(seq_target.replace('-','')))
 		if ratio < 0.9:
+			low_ratio += 1
 			continue
 		
 		target_idx_list = seq_with_gap_to_idx(seq_target)
@@ -110,6 +105,8 @@ def get_pdb_to_uniprot_map(result_dict):
 		else:
 			pdb_to_uniprot_map_dict[pdbid] = {}
 			pdb_to_uniprot_map_dict[pdbid][chain] = pdb_to_uniprot_idx
+	print('low_ratio', low_ratio)
+	print('pdb_to_uniprot_map_dict', len(pdb_to_uniprot_map_dict))
 	return pdb_to_uniprot_map_dict
 
 def get_interact_in_uniprot_seq(pdb_to_uniprot, uniprot_seq, seq_dict, residue_interact):	
@@ -119,7 +116,7 @@ def get_interact_in_uniprot_seq(pdb_to_uniprot, uniprot_seq, seq_dict, residue_i
 	residue_record = '' 
 	for item in residue_interact:
 		chain, idx = item[0][0], int(item[0][1:])    # chain, idx (pdb) of interact residue
-		if chain not in  pdb_to_uniprot:
+		if chain not in pdb_to_uniprot:
 			continue
 		sequence, idx_list = seq_dict[chain]       # pdb seuqnce, idx of chain
 		if idx_list.count(idx) != 1:             # some positions in pdb sequence may have the same idx
@@ -139,8 +136,14 @@ def get_interact_in_uniprot_seq(pdb_to_uniprot, uniprot_seq, seq_dict, residue_i
 
 
 # main
-with open('out1.2_pdbid_list.txt') as f:
-	pdbid_list = [line.strip() for line in f.readlines()]
+def get_pdbid_list():
+	pdbid_list = []
+	with open('./out2_pdbbind_all_datafile.tsv') as f:
+		for line in f.readlines():
+			pdbid_list.append(line.strip().split('\t')[0])
+	print('pdbid_list',len(pdbid_list))
+	return pdbid_list
+pdbid_list = get_pdbid_list()
 
 with open('out4_interaction_dict','rb') as f:
 	interaction_dict_from_pdb = pickle.load(f)
@@ -163,6 +166,7 @@ for item in interaction_dict_from_pdb:
 	pdbid, ligand = item.split('_')
 	i += 1
 	if pdbid in ['4p4s', '5ayf']:  #sequences are not same
+		print(pdbid)
 		continue
 	if pdbid not in uniprot_seq_dict:
 		count_not_in_uniprot_seq_dict += 1
@@ -170,7 +174,7 @@ for item in interaction_dict_from_pdb:
 	if pdbid not in pdb_to_uniprot_map_dict:
 		count_no_uniprot_map += 1
 		continue
-	ligand = pdbid_to_ligand[pdbid]       # get ligand id
+	assert ligand == pdbid_to_ligand[pdbid]       # get ligand id
 	uniprot_seq, uniprot_id = uniprot_seq_dict[pdbid]    # get uniprot sequence
 
 	seq_dict = interaction_dict_from_pdb[pdbid+'_'+ligand]['sequence']      # get pdb seq_dict 
@@ -211,4 +215,4 @@ print('count_no_uniprot_map', count_no_uniprot_map)
 print('count_not_in_uniprot_seq_dict',count_not_in_uniprot_seq_dict)
 
 with open('out7_final_pairwise_interaction_dict','wb') as f:
-	pickle.dump(interaction_dict_from_pdb_final,f)
+	pickle.dump(interaction_dict_from_pdb_final, f)
