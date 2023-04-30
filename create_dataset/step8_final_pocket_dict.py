@@ -16,18 +16,10 @@ def read_fasta():
 
 def get_pdbid_to_ligand():
 	pdbid_to_ligand = {}
-	with open('./pdbbind_index/INDEX_general_PL.2020') as f:
+	with open('./out2_pdbbind_all_datafile.tsv') as f:
 		for line in f.readlines():
-			if line[0] != '#':
-				ligand = line.strip().split('(')[1].split(')')[0]
-				if '-mer' in ligand:
-					continue
-				elif '/' in ligand:
-					ligand = ligand.split('/')[0]
-				if len(ligand) != 3:
-					#print(line[:4], ligand)
-					continue
-				pdbid_to_ligand[line[:4]] = ligand
+			pdb_id, ligand_id = line.strip().split('\t')[0], line.strip().split('\t')[2]
+			pdbid_to_ligand[pdb_id] = ligand_id
 	print('pdbid_to_ligand',len(pdbid_to_ligand))
 	return pdbid_to_ligand
 pdbid_to_ligand = get_pdbid_to_ligand()
@@ -95,28 +87,25 @@ def get_target_idx(target_idx_list, query_idx_list, align, target_start, query_s
 
 def get_pdb_to_uniprot_map(result_dict):
 	#pdb_ratio_dict = {}
+	low_ratio = 0
 	pdb_to_uniprot_map_dict = {}
 	for name in result_dict:
 		pdbid, chain = name.split('_')
-		#if pdbid != '2qbw':
-			#continue
 		seq_target, seq_query, align, target_start, query_start = result_dict[name]
-		#print(seq_target, seq_query, align, target_start, query_start )
 		ratio = float(align.count('|'))/float(len(seq_target.replace('-','')))
 		if ratio < 0.9:
+			low_ratio += 1
 			continue
 		
 		target_idx_list = seq_with_gap_to_idx(seq_target)
 		query_idx_list = seq_with_gap_to_idx(seq_query)
-		#print('seq_target',seq_target, len(seq_query.replace('-','')),  len(seq_target.replace('-','')))
 		pdb_to_uniprot_idx = get_target_idx(target_idx_list, query_idx_list, align, target_start, query_start)
-		#print('pdb_to_uniprot_idx',pdb_to_uniprot_idx)
 		if pdbid in pdb_to_uniprot_map_dict:
 			pdb_to_uniprot_map_dict[pdbid][chain] = pdb_to_uniprot_idx
 		else:
 			pdb_to_uniprot_map_dict[pdbid] = {}
 			pdb_to_uniprot_map_dict[pdbid][chain] = pdb_to_uniprot_idx
-
+	print('low_ratio', low_ratio)
 	return pdb_to_uniprot_map_dict
 
 def get_pocket_in_uniprot_seq(pocket_dict, protein_dict, pdb_to_uniprot, uniprot_seq):	
@@ -199,4 +188,4 @@ print('count_not_in_dataset',count_not_in_dataset)
 print('count_not_same_seq', count_not_same_seq)
 print('count_not_align', count_not_align)
 with open('out8_final_pocket_dict','wb') as f:
-	pickle.dump(pdbbind_pocket_dict_final,f,protocol=0)
+	pickle.dump(pdbbind_pocket_dict_final, f)
