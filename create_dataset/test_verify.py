@@ -386,45 +386,45 @@ with open('./out8_final_pocket_dict', 'rb') as f:
 # for key in dict8_list:
 #     if key not in intersect_list:
 #         del dict8[key]
-# print(len(dict7), len(dict8))
+print(len(dict7), len(dict8))
 # with open('out7_final_pairwise_interaction_dict','wb') as f:
 # 	pickle.dump(dict7, f)
 # with open('out8_final_pocket_dict','wb') as f:
 # 	pickle.dump(dict8, f)
 
-total_interaction_sites, in_pocket_sites, pocket_sites = 0, 0, 0
-for key in dict7:
-    interact_list = dict7[key]['interact_in_uniprot_seq']
-    pocket_list = dict8[key]['pocket_in_uniprot_seq']
-    total_interaction_sites += len(interact_list)
-    pocket_sites += len(pocket_list)
-    in_pocket_sites += len(set(interact_list).intersection(pocket_list))
-print('total_interaction_sites', total_interaction_sites)
-print('in_pocket_sites', in_pocket_sites)
-print('pocket_sites', pocket_sites)
+# total_interaction_sites, in_pocket_sites, pocket_sites = 0, 0, 0
+# for key in dict7:
+#     interact_list = dict7[key]['interact_in_uniprot_seq']
+#     pocket_list = dict8[key]['pocket_in_uniprot_seq']
+#     total_interaction_sites += len(interact_list)
+#     pocket_sites += len(pocket_list)
+#     in_pocket_sites += len(set(interact_list).intersection(pocket_list))
+# print('total_interaction_sites', total_interaction_sites)
+# print('in_pocket_sites', in_pocket_sites)
+# print('pocket_sites', pocket_sites)
 
-percentage_list = []
-p = 0
-cnt = len(dict7)
-for key in dict7:
-    interact_list = dict7[key]['interact_in_uniprot_seq']
-    pocket_list = dict8[key]['pocket_in_uniprot_seq']
-    in_pocket_sites = len(set(interact_list).intersection(pocket_list))
-    percentage_list.append((in_pocket_sites/len(interact_list))*100)
-    p += (in_pocket_sites/len(interact_list)) * 100 / cnt
-print(p)
+# percentage_list = []
+# p = 0
+# cnt = len(dict7)
+# for key in dict7:
+#     interact_list = dict7[key]['interact_in_uniprot_seq']
+#     pocket_list = dict8[key]['pocket_in_uniprot_seq']
+#     in_pocket_sites = len(set(interact_list).intersection(pocket_list))
+#     percentage_list.append((in_pocket_sites/len(interact_list))*100)
+#     p += (in_pocket_sites/len(interact_list)) * 100 / cnt
+# print(p)
 
-import numpy as np
-# define the ranges you're interested in as a list of tuples
-ranges = [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)]
+# import numpy as np
+# # define the ranges you're interested in as a list of tuples
+# ranges = [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)]
 
-# use numpy to count the number of elements in each range
-counts, _ = np.histogram(percentage_list, bins=[r[0] for r in ranges] + [r[1] for r in ranges[-1:]])
+# # use numpy to count the number of elements in each range
+# counts, _ = np.histogram(percentage_list, bins=[r[0] for r in ranges] + [r[1] for r in ranges[-1:]])
 
-# calculate the percentage of elements in each range
-total = len(percentage_list)
-percentages = [100 * count / total for count in counts]
+# # calculate the percentage of elements in each range
+# total = len(percentage_list)
+# percentages = [100 * count / total for count in counts]
 
-# print the percentages
-for i, r in enumerate(ranges):
-    print(f"{r}: {percentages[i]:.2f}%")
+# # print the percentages
+# for i, r in enumerate(ranges):
+#     print(f"{r}: {percentages[i]:.2f}%")
