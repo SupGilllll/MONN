@@ -49,7 +49,7 @@ Output: "out4_interaction_dict", a dict packed by pickle. Key is "pdbID_ligandID
 	"atom_name": str, ligand atom full name list
 	"atom_element": str, ligand atom element type list
 	"atom_interact": int, ligand atom interaction list (0 or 1)
-	 "atom_bond_type": list of tuple (atom_name, bond_type)
+	"atom_bond_type": list of tuple (atom_name, bond_type)
 	"sequence": dict, {chain_id: (sequence, index_list)}
 	"residue_interact": list of tupe(chain_id+residue_idx, residue_name(1-letter), bond_type)
 	 }
