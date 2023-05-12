@@ -1,5 +1,6 @@
 import pickle
 import os 
+import numpy as np
 os.chdir('/data/zhao/MONN/create_dataset')
 # seen = set()
 # dup = []
@@ -363,11 +364,20 @@ os.chdir('/data/zhao/MONN/create_dataset')
 # with open('out8_final_pocket_dict','wb') as f:
 # 	pickle.dump(dict8, f)
 
-import matplotlib.pyplot as plt
-with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
-    dict7 = pickle.load(f)
+# import matplotlib.pyplot as plt
+# with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
+#     dict7 = pickle.load(f)
+id_list = []
+with open('./out2_pdbbind_all_datafile.tsv', 'r') as f:
+    for line in f.readlines():
+        objects = line.strip().split('\t')
+        id_list.append(objects[0])
 with open('./out8_final_pocket_dict', 'rb') as f:
     dict8 = pickle.load(f)
+if '5mka' in dict8:
+    print('happy1')
+if '5mka' in id_list:
+    print('happy2')
 
 # dict7_list = list(dict7.keys())
 # dict8_list = list(dict8.keys())
@@ -386,7 +396,7 @@ with open('./out8_final_pocket_dict', 'rb') as f:
 # for key in dict8_list:
 #     if key not in intersect_list:
 #         del dict8[key]
-print(len(dict7), len(dict8))
+# print(len(dict7), len(dict8))
 # with open('out7_final_pairwise_interaction_dict','wb') as f:
 # 	pickle.dump(dict7, f)
 # with open('out8_final_pocket_dict','wb') as f:
@@ -428,3 +438,7 @@ print(len(dict7), len(dict8))
 # # print the percentages
 # for i, r in enumerate(ranges):
 #     print(f"{r}: {percentages[i]:.2f}%")
+
+# uniprotids_list = np.load('pdbbind_protein_list.npy')
+# mat = np.load('pdbbind_protein_sim_mat.npy')
+# print(np.dtype(mat[0,1]))
