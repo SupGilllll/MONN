@@ -6,3 +6,6 @@ create_dataset/Components-pub.sdf
 create_dataset/uniprot*
 data/Components-pub.sdf
 preprocessing/*
+src/__pycache__
+src/*.log
+src/*.npy

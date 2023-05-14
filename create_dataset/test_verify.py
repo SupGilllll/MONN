@@ -365,19 +365,26 @@ os.chdir('/data/zhao/MONN/create_dataset')
 # 	pickle.dump(dict8, f)
 
 # import matplotlib.pyplot as plt
-# with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
-#     dict7 = pickle.load(f)
-id_list = []
+with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
+    dict7 = pickle.load(f)
+dict7_list = list(dict7.keys())
+# id_list = []
+cnt1 = 0
+cnt2 = 0
 with open('./out2_pdbbind_all_datafile.tsv', 'r') as f:
     for line in f.readlines():
         objects = line.strip().split('\t')
-        id_list.append(objects[0])
-with open('./out8_final_pocket_dict', 'rb') as f:
-    dict8 = pickle.load(f)
-if '5mka' in dict8:
-    print('happy1')
-if '5mka' in id_list:
-    print('happy2')
+        if objects[5] == 'IC50' and objects[0] in dict7_list:
+            cnt1 += 1
+        elif objects[5] in ['Ki', 'Kd'] and objects[0] in dict7_list:
+            cnt2 += 1
+print(cnt1, cnt2)
+# with open('./out8_final_pocket_dict', 'rb') as f:
+#     dict8 = pickle.load(f)
+# if '5mka' in dict8:
+#     print('happy1')
+# if '5mka' in id_list:
+#     print('happy2')
 
 # dict7_list = list(dict7.keys())
 # dict8_list = list(dict8.keys())
