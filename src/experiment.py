@@ -1,8 +1,11 @@
-import numpy as np
 import os
 os.chdir('/data/zhao/MONN/src')
 
-ori_protein_list = np.load('../data_Archive/pdbbind_protein_list.npy').tolist()
-protein_sim_mat = np.load('../data_Archive/pdbbind_protein_sim_mat.npy').astype(np.float32)
-print(ori_protein_list[0])
-print('happy')
+measures = ['KIKD', 'IC50']
+settings = ['new_new', 'new_protein', 'new_compound']
+thresholds = [0.3, 0.4, 0.5, 0.6]
+
+for measure in measures:
+    for setting in settings:
+        for threshold in thresholds:
+            os.system(f'python CPI_train.py {measure} {setting} {threshold} > {measure}_{setting}_{threshold}.log')

@@ -9,3 +9,7 @@ preprocessing/*
 src/__pycache__
 src/*.log
 src/*.npy
+results/*/*.log
+results/*/*.npy
+settings.json
+*.png

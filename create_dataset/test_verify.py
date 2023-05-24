@@ -365,20 +365,20 @@ os.chdir('/data/zhao/MONN/create_dataset')
 # 	pickle.dump(dict8, f)
 
 # import matplotlib.pyplot as plt
-with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
-    dict7 = pickle.load(f)
-dict7_list = list(dict7.keys())
-# id_list = []
-cnt1 = 0
-cnt2 = 0
-with open('./out2_pdbbind_all_datafile.tsv', 'r') as f:
-    for line in f.readlines():
-        objects = line.strip().split('\t')
-        if objects[5] == 'IC50' and objects[0] in dict7_list:
-            cnt1 += 1
-        elif objects[5] in ['Ki', 'Kd'] and objects[0] in dict7_list:
-            cnt2 += 1
-print(cnt1, cnt2)
+# with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
+#     dict7 = pickle.load(f)
+# dict7_list = list(dict7.keys())
+# # id_list = []
+# cnt1 = 0
+# cnt2 = 0
+# with open('./out2_pdbbind_all_datafile.tsv', 'r') as f:
+#     for line in f.readlines():
+#         objects = line.strip().split('\t')
+#         if objects[5] == 'IC50' and objects[0] in dict7_list:
+#             cnt1 += 1
+#         elif objects[5] in ['Ki', 'Kd'] and objects[0] in dict7_list:
+#             cnt2 += 1
+# print(cnt1, cnt2)
 # with open('./out8_final_pocket_dict', 'rb') as f:
 #     dict8 = pickle.load(f)
 # if '5mka' in dict8:
@@ -449,3 +449,82 @@ print(cnt1, cnt2)
 # uniprotids_list = np.load('pdbbind_protein_list.npy')
 # mat = np.load('pdbbind_protein_sim_mat.npy')
 # print(np.dtype(mat[0,1]))
+
+# sample_count = 0
+# Kd = 0
+# Ki = 0
+# IC50 = 0
+# compound_set = set()
+# pdbid_to_ligand = {}
+# with open('./pdbbind_index/INDEX_general_PL.2020') as f:
+#     for line in f.readlines():
+#         if line[0] != '#':
+#             sample_count += 1
+#             if 'Ki' in line:
+#                 Ki += 1
+#             elif 'Kd' in line:
+#                 Kd += 1
+#             elif 'IC50' in line:
+#                 IC50 += 1
+#             ligand = line.strip().split('(')[1].split(')')[0]
+#             compound_set.add(ligand)
+# print(Kd, Ki, IC50, sample_count, len(compound_set))
+
+# protein_set = set()
+# pdbid_to_ligand = {}
+# with open('./pdbbind_index/INDEX_general_PL_name.2020') as f:
+#     for line in f.readlines():
+#         if line[0] != '#':
+#             uniprot = line.strip().split()[2]
+#             if uniprot != '------':
+#                 protein_set.add(uniprot)
+# print(len(protein_set))
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+data = [
+    ['Threshold', 'Number of clusters', 'Number of elements in largest cluster'],
+    ['0.3', '5026', '103'],
+    ['0.4', '4035', '322'],
+    ['0.5', '2898', '1237'],
+    ['0.6', '1748', '3343']
+]
+
+# Extract the data points from the list
+thresholds = [float(row[0]) for row in data[1:]]
+num_clusters = [int(row[1]) for row in data[1:]]
+num_elements = [int(row[2]) for row in data[1:]]
+
+# Set seaborn style
+
+
+# Create the figure and the first y-axis
+fig, ax1 = plt.subplots()
+ax1.plot(thresholds, num_clusters, 'o-', color='mediumblue', label='Number of clusters')
+ax1.set_xlabel('Threshold')
+ax1.set_ylabel('Number of clusters')
+ax1.tick_params('y')
+ax1.set_xticks([0.3,0.4,0.5,0.6])
+
+# Create the second y-axis
+ax2 = ax1.twinx()
+ax2.plot(thresholds, num_elements, 'o-', color='forestgreen', label='Number of elements in largest cluster')
+ax2.set_ylabel('Number of elements in largest cluster')
+ax2.tick_params('y')
+
+# Combine the legends from both y-axes into a single box
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+# ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+
+# Add markers to data points
+for x, y1, y2 in zip(thresholds, num_clusters, num_elements):
+    ax1.plot(x, y1, 'o', markersize=4, color='mediumblue')
+    ax2.plot(x, y2, 'o', markersize=4, color='forestgreen')
+ax1.legend(lines1 + lines2, labels1 + labels2, bbox_to_anchor=(0, 1.1, 1, 0.2), loc="lower left",
+                mode="expand", borderaxespad=0)
+
+plt.title('Compound Clusters with different Threshold')
+
+# Display the table
+plt.savefig('plot.png', bbox_inches = 'tight')

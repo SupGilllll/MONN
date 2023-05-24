@@ -3,6 +3,7 @@ import math
 import time
 import pickle
 import numpy as np
+import os
 
 import torch
 from torch import nn
@@ -21,12 +22,12 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 	net.cuda()
 	net.apply(weights_init)
 	pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
-	print 'total num params', pytorch_total_params
+	print('total num params', pytorch_total_params)
 	
 	criterion1 = nn.MSELoss()
 	criterion2 = Masked_BCELoss()
 	
-	optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=0.0005, weight_decay=0, amsgrad=True)
+	optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad], lr=0.0005, weight_decay=0, amsgrad=True)
 	scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 	
 	shuffle_index = np.arange(len(train_data[0]))
@@ -34,9 +35,8 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 	#max_auc = 0
 	for epoch in range(num_epoch):
 		np.random.shuffle(shuffle_index)
-		scheduler.step()
 		for param_group in optimizer.param_groups:
-			print 'learning rate:', param_group['lr']
+			print('learning rate:', param_group['lr'])
 		
 		train_output_list = []
 		train_label_list = []
@@ -46,10 +46,10 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 
 		for i in range(int(len(train_data[0])/batch_size)):
 			if i % 100 == 0:
-				print 'epoch', epoch, 'batch', i
+				print('epoch', epoch, 'batch', i)
 			
 			input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, affinity_label, pairwise_mask, pairwise_label = \
-			[ train_data[data_idx][shuffle_index[i*batch_size:(i+1)*batch_size]] for data_idx in range(9)]
+			[train_data[data_idx][shuffle_index[i*batch_size:(i+1)*batch_size]] for data_idx in range(9)]
 			
 			inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
 			vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(inputs)
@@ -72,21 +72,22 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 			loss.backward()
 			nn.utils.clip_grad_norm_(net.parameters(), 5)
 			optimizer.step()
-			
+		
+		scheduler.step()
 		loss_list = [total_loss, affinity_loss, pairwise_loss]
 		loss_name = ['total loss', 'affinity loss', 'pairwise loss']
 		print_loss = [loss_name[i]+' '+str(round(loss_list[i]/float(len(train_data[0])), 6)) for i in range(len(loss_name))]
-		print 'epoch:',epoch, ' '.join(print_loss)
+		print('epoch:', epoch, ' '.join(print_loss))
 		
 		perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC']
 		if epoch % 10 == 0:
 			train_performance, train_label, train_output = test(net, train_data, batch_size)
 			print_perf = [perf_name[i]+' '+str(round(train_performance[i], 6)) for i in range(len(perf_name))]
-			print 'train', len(train_output), ' '.join(print_perf)
+			print('train', len(train_output), ' '.join(print_perf))
 		
 		valid_performance, valid_label, valid_output = test(net, valid_data, batch_size)
 		print_perf = [perf_name[i]+' '+str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
-		print 'valid', len(valid_output), ' '.join(print_perf)
+		print('valid', len(valid_output), ' '.join(print_perf))
 		
 		if valid_performance[0] < min_rmse:
 		#if valid_performance[-1] > max_auc:
@@ -94,9 +95,9 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 			#max_auc = valid_performance[-1]
 			test_performance, test_label, test_output = test(net, test_data, batch_size)
 		print_perf = [perf_name[i]+' '+str(round(test_performance[i], 6)) for i in range(len(perf_name))]
-		print 'test ', len(test_output), ' '.join(print_perf)
+		print('test ', len(test_output), ' '.join(print_perf))
 		
-	print 'Finished Training'
+	print('Finished Training')
 	return test_performance, test_label, test_output
 
 
@@ -131,12 +132,16 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
+	# os.chdir('/data/zhao/MONN/src')
 	#evaluate scheme
 	measure = sys.argv[1]  # IC50 or KIKD
 	setting = sys.argv[2]   # new_compound, new_protein or new_new
 	clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
+	# measure = 'IC50'  # IC50 or KIKD
+	# setting = 'new_compound'   # new_compound, new_protein or new_new
+	# clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
 	n_epoch = 30
-	n_rep = 10
+	n_rep = 5
 	
 	assert setting in ['new_compound', 'new_protein', 'new_new']
 	assert clu_thre in [0.3, 0.4, 0.5, 0.6]
@@ -153,7 +158,7 @@ if __name__ == "__main__":
 	elif setting == 'new_new':
 		n_fold = 9
 		batch_size = 32
-		#k_head, kernel_size, hidden_size1, hidden_size2 = 1, 7, 128, 128
+		k_head, kernel_size, hidden_size1, hidden_size2 = 1, 7, 128, 128
 	para_names = ['GNN_depth', 'inner_CNN_depth', 'DMA_depth', 'k_head', 'kernel_size', 'hidden_size1', 'hidden_size2']
 	
 	params = [GNN_depth, inner_CNN_depth, DMA_depth, k_head, kernel_size, hidden_size1, hidden_size2]
@@ -161,11 +166,12 @@ if __name__ == "__main__":
 	#params = map(int, params)
 	
 	#print evaluation scheme
-	print 'Dataset: PDBbind v2018 with measurement', measure
-	print 'Clustering threshold:', clu_thre
-	print 'Number of epochs:', n_epoch
-	print 'Number of repeats:', n_rep
-	print 'Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)]
+	print('Dataset: PDBbind v2021 with measurement', measure)
+	print('Experiment setting', setting)
+	print('Clustering threshold:', clu_thre)
+	print('Number of epochs:', n_epoch)
+	print('Number of repeats:', n_rep)
+	print('Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)])
 	
 	rep_all_list = []
 	rep_avg_list = []
@@ -175,9 +181,9 @@ if __name__ == "__main__":
 		fold_score_list = []
 		
 		for a_fold in range(n_fold):
-			print 'repeat', a_rep+1, 'fold', a_fold+1, 'begin'
+			print('repeat', a_rep+1, 'fold', a_fold+1, 'begin')
 			train_idx, valid_idx, test_idx = train_idx_list[a_fold], valid_idx_list[a_fold], test_idx_list[a_fold]
-			print 'train num:', len(train_idx), 'valid num:', len(valid_idx), 'test num:', len(test_idx)
+			print('train num:', len(train_idx), 'valid num:', len(valid_idx), 'test num:', len(test_idx))
 			
 			train_data = data_from_index(data_pack, train_idx)
 			valid_data = data_from_index(data_pack, valid_idx)
@@ -186,19 +192,19 @@ if __name__ == "__main__":
 			test_performance, test_label, test_output = train_and_eval(train_data, valid_data, test_data, params, batch_size, n_epoch)
 			rep_all_list.append(test_performance)
 			fold_score_list.append(test_performance)
-			print '-'*30
-		print 'fold avg performance', np.mean(fold_score_list,axis=0)
+			print('-'*30)
+		print('fold avg performance', np.mean(fold_score_list,axis=0))
 		rep_avg_list.append(np.mean(fold_score_list,axis=0))
 		np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
 	
-	print 'all repetitions done'
-	print 'print all stats: RMSE, Pearson, Spearman, avg pairwise AUC'
-	print 'mean', np.mean(rep_all_list, axis=0)
-	print 'std', np.std(rep_all_list, axis=0)
-	print '=============='
-	print 'print avg stats:  RMSE, Pearson, Spearman, avg pairwise AUC'
-	print 'mean', np.mean(rep_avg_list, axis=0)
-	print 'std', np.std(rep_avg_list, axis=0)
-	print 'Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)]
+	print('all repetitions done')
+	print('print all stats: RMSE, Pearson, Spearman, avg pairwise AUC')
+	print('mean', np.mean(rep_all_list, axis=0))
+	print('std', np.std(rep_all_list, axis=0))
+	print('==============')
+	print('print avg stats:  RMSE, Pearson, Spearman, avg pairwise AUC')
+	print('mean', np.mean(rep_avg_list, axis=0))
+	print('std', np.std(rep_avg_list, axis=0))
+	print('Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)])
 	#np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
 	np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
