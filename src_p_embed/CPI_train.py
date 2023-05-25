@@ -132,14 +132,14 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
-	# os.chdir('/data/zhao/MONN/src')
-	# measure = 'IC50'  # IC50 or KIKD
-	# setting = 'new_compound'   # new_compound, new_protein or new_new
-	# clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
+	os.chdir('/data/zhao/MONN/src')
+	measure = 'IC50'  # IC50 or KIKD
+	setting = 'new_compound'   # new_compound, new_protein or new_new
+	clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
 	#evaluate scheme
-	measure = sys.argv[1]  # IC50 or KIKD
-	setting = sys.argv[2]   # new_compound, new_protein or new_new
-	clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
+	# measure = sys.argv[1]  # IC50 or KIKD
+	# setting = sys.argv[2]   # new_compound, new_protein or new_new
+	# clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
 	n_epoch = 30
 	n_rep = 5
 	
