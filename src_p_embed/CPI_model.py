@@ -25,6 +25,9 @@ class Net(nn.Module):
 		self.init_atom_features = init_atom_features
 		self.init_bond_features = init_bond_features
 		self.init_word_features = init_word_features
+		self.prot_len_dict = self.load_prot_len_dict()
+		self.prot_embed = self.load_prot_embed()
+		
 		"""hyper part"""
 		GNN_depth, inner_CNN_depth, DMA_depth, k_head, kernel_size, hidden_size1, hidden_size2 = params
 		self.GNN_depth = GNN_depth
@@ -61,11 +64,13 @@ class Net(nn.Module):
 		
 		"""CNN-RNN Module"""
 		#CNN parameters
-		self.embed_seq = nn.Embedding(len(self.init_word_features), 20, padding_idx=0)
-		self.embed_seq.weight = nn.Parameter(self.init_word_features)
-		self.embed_seq.weight.requires_grad = False
-		
-		self.conv_first = nn.Conv1d(20, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
+		# self.embed_seq = nn.Embedding(len(self.init_word_features), 20, padding_idx=0)
+		# self.embed_seq.weight = nn.Parameter(self.init_word_features)
+		# self.embed_seq.weight.requires_grad = False
+
+		self.conv_first = nn.Conv1d(1280, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
+		# self.conv_second = nn.Conv1d(512, 256, kernel_size=self.kernel_size, padding='same')
+		# self.conv_third = nn.Conv1d(256, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
 		self.conv_last = nn.Conv1d(self.hidden_size1, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
 		
 		self.plain_CNN = nn.ModuleList([])
@@ -103,8 +108,28 @@ class Net(nn.Module):
 		"""Pairwise Interaction Prediction Module"""
 		self.pairwise_compound = nn.Linear(self.hidden_size1, self.hidden_size1)
 		self.pairwise_protein = nn.Linear(self.hidden_size1, self.hidden_size1)
-		
-	
+
+	def load_prot_len_dict(self):
+		with open('./pid_len_dict', 'rb') as f:
+			pid_len_dict = pickle.load(f)
+		return pid_len_dict
+
+	def load_prot_embed(self):
+		path = './p_embed'
+		embedding = {}
+		for pid in self.prot_len_dict.keys():
+			if self.prot_len_dict[pid] > 2048:
+				continue
+			embedding[pid] = torch.load(f'{path}/{pid}.pt')['representations'][33].cuda()
+		return embedding
+
+	def getProtEmbed(self, pids):
+		max_len = max([self.prot_len_dict[pid] for pid in pids])
+		batch_embedding = torch.zeros((len(pids), max_len, 1280)).cuda()
+		for i, pid in enumerate(pids):
+			batch_embedding[i, :self.prot_len_dict[pid]] = self.prot_embed[pid]
+		return batch_embedding
+
 	def mask_softmax(self,a, mask, dim=-1):
 		a_max = torch.max(a,dim,keepdim=True)[0]
 		a_exp = torch.exp(a-a_max)
@@ -177,11 +202,13 @@ class Net(nn.Module):
 		return vertex_features 
 	
 	
-	def CNN_module(self, batch_size, seq_mask, sequence):
+	def CNN_module(self, batch_size, seq_mask, pids):
 		
-		ebd = self.embed_seq(sequence)
-		ebd = ebd.transpose(1,2)
-		x = F.leaky_relu(self.conv_first(ebd), 0.1)
+		prot_embed = self.getProtEmbed(pids)
+		prot_embed = prot_embed.transpose(1,2)
+		x = F.leaky_relu(self.conv_first(prot_embed), 0.1)
+		# x = F.leaky_relu(self.conv_second(x), 0.1)
+		# x = F.leaky_relu(self.conv_third(x), 0.1)
 		
 		for i in range(self.inner_CNN_depth):
 			x = self.plain_CNN[i](x)

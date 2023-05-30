@@ -44,12 +44,13 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 		affinity_loss = 0
 		pairwise_loss = 0
 
-		for i in range(int(len(train_data[0])/batch_size)):
-			if i % 100 == 0:
+		for i in range(math.ceil(len(train_data[0])/batch_size)):
+			if i % 20 == 0:
 				print('epoch', epoch, 'batch', i)
 			
 			input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, affinity_label, pairwise_mask, pairwise_label = \
 			[train_data[data_idx][shuffle_index[i*batch_size:(i+1)*batch_size]] for data_idx in range(9)]
+			actual_batch_size =  len(input_vertex)
 			
 			inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
 			vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(inputs)
@@ -65,9 +66,9 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 			loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, vertex_mask, seq_mask)
 			loss = loss_aff + 0.1*loss_pairwise
 			
-			total_loss += float(loss.data*batch_size)
-			affinity_loss += float(loss_aff.data*batch_size)
-			pairwise_loss += float(loss_pairwise.data*batch_size)
+			total_loss += float(loss.data*actual_batch_size)
+			affinity_loss += float(loss_aff.data*actual_batch_size)
+			pairwise_loss += float(loss_pairwise.data*actual_batch_size)
 			
 			loss.backward()
 			nn.utils.clip_grad_norm_(net.parameters(), 5)
@@ -105,7 +106,7 @@ def test(net, test_data, batch_size):
 	output_list = []
 	label_list = []
 	pairwise_auc_list = []
-	for i in range(int(math.ceil(len(test_data[0])/float(batch_size)))):
+	for i in range(math.ceil(len(test_data[0])/batch_size)):
 		input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, aff_label, pairwise_mask, pairwise_label = \
 		[test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(9)]
 		
@@ -132,6 +133,7 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
+	torch.cuda.set_device(1)
 	# os.chdir('/data/zhao/MONN/src')
 	# measure = 'IC50'  # IC50 or KIKD
 	# setting = 'new_compound'   # new_compound, new_protein or new_new
@@ -143,7 +145,7 @@ if __name__ == "__main__":
 	n_epoch = 30
 	n_rep = 5
 	
-	assert setting in ['new_compound', 'new_protein', 'new_new']
+	assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
 	assert clu_thre in [0.3, 0.4, 0.5, 0.6]
 	assert measure in ['IC50', 'KIKD']
 	GNN_depth, inner_CNN_depth, DMA_depth = 4, 2, 2
@@ -172,15 +174,18 @@ if __name__ == "__main__":
 	print('Number of epochs:', n_epoch)
 	print('Number of repeats:', n_rep)
 	print('Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)])
+	all_start_time = time.time()
 	
 	rep_all_list = []
 	rep_avg_list = []
 	for a_rep in range(n_rep):
+		rep_start_time = time.time()
 		#load data
 		data_pack, train_idx_list, valid_idx_list, test_idx_list = load_data(measure, setting, clu_thre, n_fold)
 		fold_score_list = []
 		
 		for a_fold in range(n_fold):
+			fold_start_time = time.time()
 			print('repeat', a_rep+1, 'fold', a_fold+1, 'begin')
 			train_idx, valid_idx, test_idx = train_idx_list[a_fold], valid_idx_list[a_fold], test_idx_list[a_fold]
 			print('train num:', len(train_idx), 'valid num:', len(valid_idx), 'test num:', len(test_idx))
@@ -193,10 +198,13 @@ if __name__ == "__main__":
 			rep_all_list.append(test_performance)
 			fold_score_list.append(test_performance)
 			print('-'*30)
+			print(f'repeat {a_rep + 1}, fold {a_fold + 1}, spend {format((time.time() - fold_start_time) / 3600.0, ".3f")} hours')
+		print(f'repeat {a_rep + 1}, spend {format((time.time() - rep_start_time) / 3600.0, ".3f")}')
 		print('fold avg performance', np.mean(fold_score_list,axis=0))
 		rep_avg_list.append(np.mean(fold_score_list,axis=0))
-		np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
+		# np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
 	
+	print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')
 	print('all repetitions done')
 	print('print all stats: RMSE, Pearson, Spearman, avg pairwise AUC')
 	print('mean', np.mean(rep_all_list, axis=0))
@@ -206,5 +214,5 @@ if __name__ == "__main__":
 	print('mean', np.mean(rep_avg_list, axis=0))
 	print('std', np.std(rep_avg_list, axis=0))
 	print('Hyper-parameters:', [para_names[i]+':'+str(params[i]) for i in range(7)])
-	#np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
-	np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
+	# np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
+	# np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)

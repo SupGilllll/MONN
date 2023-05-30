@@ -106,7 +106,7 @@ def add_index(input_array, ebd_size):
 
 #function for generating batch data
 def batch_data_process(data):
-	vertex, edge, atom_adj, bond_adj, nbs, sequence = data
+	vertex, edge, atom_adj, bond_adj, nbs, sequence, pids = data
 	
 	vertex_mask = get_mask(vertex)
 	vertex = pack1D(vertex)
@@ -117,24 +117,29 @@ def batch_data_process(data):
 	
 	#pad proteins and make masks
 	seq_mask = get_mask(sequence)
-	sequence = pack1D(sequence+1)
+	# sequence = pack1D(sequence+1)
+
+	# pad protein embedding
+	# sequence dim [batch_size, padded_length] -> protein language model embedding [batch_size, padded_length, embedding dim]
+	# prot_embedding = getProtEmbed("./p_embed", pids)
 	
 	#add index
 	atom_adj = add_index(atom_adj, np.shape(atom_adj)[1])
 	bond_adj = add_index(bond_adj, np.shape(edge)[1])
 	
 	#convert to torch cuda data type
-	vertex_mask = Variable(torch.FloatTensor(vertex_mask)).cuda()
-	vertex = Variable(torch.LongTensor(vertex)).cuda()
-	edge = Variable(torch.LongTensor(edge)).cuda()
-	atom_adj = Variable(torch.LongTensor(atom_adj)).cuda()
-	bond_adj = Variable(torch.LongTensor(bond_adj)).cuda()
-	nbs_mask = Variable(torch.FloatTensor(nbs_mask)).cuda()
+	vertex_mask = torch.FloatTensor(vertex_mask).cuda()
+	vertex = torch.LongTensor(vertex).cuda()
+	edge = torch.LongTensor(edge).cuda()
+	atom_adj = torch.LongTensor(atom_adj).cuda()
+	bond_adj = torch.LongTensor(bond_adj).cuda()
+	nbs_mask = torch.FloatTensor(nbs_mask).cuda()
 	
-	seq_mask = Variable(torch.FloatTensor(seq_mask)).cuda()
-	sequence = Variable(torch.LongTensor(sequence)).cuda()
+	seq_mask = torch.FloatTensor(seq_mask).cuda()
+	# prot_embedding = torch.FloatTensor(prot_embedding).cuda()
+	# sequence = torch.LongTensor(sequence).cuda()
 	
-	return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence
+	return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, pids
 
 
 # load data
@@ -142,9 +147,10 @@ def data_from_index(data_pack, idx_list):
 	fa, fb, anb, bnb, nbs_mat, seq_input = [data_pack[i][idx_list] for i in range(6)]
 	aff_label = data_pack[6][idx_list].astype(float).reshape(-1,1)
 	#cid, pid = [data_pack[i][idx_list] for i in range(7,9)]
+	pid = data_pack[8][idx_list]
 	pairwise_mask = data_pack[9][idx_list].astype(float).reshape(-1,1)
 	pairwise_label = data_pack[10][idx_list]
-	return [fa, fb, anb, bnb, nbs_mat, seq_input, aff_label, pairwise_mask, pairwise_label]
+	return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label]
 
 
 def split_train_test_clusters(measure, clu_thre, n_fold):
@@ -196,6 +202,8 @@ def load_data(measure, setting, clu_thre, n_fold):
 	# load data
 	with open('../preprocessing/pdbbind_all_combined_input_'+measure,'rb') as f:
 		data_pack = pickle.load(f)
+	with open('./pid_len_dict', 'rb') as f:
+		pid_len_dict = pickle.load(f)
 	cid_list = data_pack[7]
 	pid_list = data_pack[8]
 	n_sample = len(cid_list)
@@ -236,6 +244,8 @@ def load_data(measure, setting, clu_thre, n_fold):
 			p_train = set(p_train_valid)-set(p_valid)
 			train_idx, valid_idx, test_idx = [], [], []
 			for ele in range(n_sample): 
+				if pid_len_dict[pid_list[ele]] > 2048:
+					continue
 				if P_cluster_dict[pid_list[ele]] in p_train:
 					train_idx.append(ele)
 				elif P_cluster_dict[pid_list[ele]] in p_valid:
@@ -258,6 +268,8 @@ def load_data(measure, setting, clu_thre, n_fold):
 			c_train = set(c_train_valid)-set(c_valid)
 			train_idx, valid_idx, test_idx = [], [], []
 			for ele in range(n_sample):
+				if pid_len_dict[pid_list[ele]] > 2048:
+					continue
 				if C_cluster_dict[cid_list[ele]] in c_train:
 					train_idx.append(ele)
 				elif C_cluster_dict[cid_list[ele]] in c_valid:
@@ -287,6 +299,8 @@ def load_data(measure, setting, clu_thre, n_fold):
 				
 				train_idx, valid_idx, test_idx = [], [], []
 				for ele in range(n_sample):
+					if pid_len_dict[pid_list[ele]] > 2048:
+						continue
 					if C_cluster_dict[cid_list[ele]] in c_train and P_cluster_dict[pid_list[ele]] in p_train:
 						train_idx.append(ele)
 					elif C_cluster_dict[cid_list[ele]] in c_valid and P_cluster_dict[pid_list[ele]] in p_valid:
@@ -332,9 +346,9 @@ def loading_emb(measure):
 		if key not in blosum_dict:
 			continue
 		init_word_features[value] = blosum_dict[key] #/ float(np.sum(blosum_dict[key]))
-	init_atom_features = Variable(torch.FloatTensor(init_atom_features)).cuda()
-	init_bond_features = Variable(torch.FloatTensor(init_bond_features)).cuda()
-	init_word_features = Variable(torch.cat((torch.zeros(1,20),torch.FloatTensor(init_word_features)),dim=0)).cuda()
+	init_atom_features = torch.FloatTensor(init_atom_features).cuda()
+	init_bond_features = torch.FloatTensor(init_bond_features).cuda()
+	init_word_features = torch.cat((torch.zeros(1,20),torch.FloatTensor(init_word_features)),dim=0).cuda()
 	
 	return init_atom_features, init_bond_features, init_word_features
 

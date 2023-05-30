@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 
 # Sample data
 x_values = ['0.3', '0.4', '0.5', '0.6']
-correlation_values = [0.52729021, 0.49591197, 0.46304611, 0.48075808]
-rmse_values = [1.7377026, 1.7797419, 1.81391531, 1.72286034]
+correlation_values = [0.54228906, 0.52974118, 0.53003064, 0.50341555]
+rmse_values = [1.35876373, 1.38005795, 1.3818055, 1.39479713]
 
 # Create a figure and axis
 fig, ax = plt.subplots()
@@ -17,7 +17,7 @@ ax.plot(x_values, rmse_values, marker='o', linestyle='-', color='r', label='RMSE
 # Set labels and title
 ax.set_xlabel('Threshold')
 ax.set_ylabel('Value')
-plt.title('Pearson Correlation and RMSE under new-new setting')
+plt.title('Pearson Correlation and RMSE under new-new setting (IC50)')
 # ax.set_xticks(x_values)
 # Add legend
 plt.legend()
