@@ -22,14 +22,8 @@ class Net(nn.Module):
 	def __init__(self, init_atom_features, init_bond_features, init_word_features, params):
 		super(Net, self).__init__()
 		
-		self.init_atom_features = init_atom_features
-		self.init_bond_features = init_bond_features
-		self.init_word_features = init_word_features
-		self.prot_len_dict = self.load_prot_len_dict()
-		self.prot_embed = self.load_prot_embed()
-		
 		"""hyper part"""
-		GNN_depth, inner_CNN_depth, DMA_depth, k_head, kernel_size, hidden_size1, hidden_size2 = params
+		GNN_depth, inner_CNN_depth, DMA_depth, k_head, kernel_size, hidden_size1, hidden_size2, embed_model, embed_dim = params
 		self.GNN_depth = GNN_depth
 		self.inner_CNN_depth = inner_CNN_depth
 		self.DMA_depth = DMA_depth
@@ -37,7 +31,15 @@ class Net(nn.Module):
 		self.kernel_size = kernel_size
 		self.hidden_size1 = hidden_size1
 		self.hidden_size2 = hidden_size2
-		
+		self.embed_model = embed_model
+		self.embed_dim = embed_dim
+
+		self.init_atom_features = init_atom_features
+		self.init_bond_features = init_bond_features
+		self.init_word_features = init_word_features
+		self.prot_len_dict = self.load_prot_len_dict()
+		self.prot_embed = self.load_prot_embed()
+				
 		"""GraphConv Module"""
 		self.vertex_embedding = nn.Linear(atom_fdim, self.hidden_size1) #first transform vertex features into hidden representations
 		
@@ -68,7 +70,7 @@ class Net(nn.Module):
 		# self.embed_seq.weight = nn.Parameter(self.init_word_features)
 		# self.embed_seq.weight.requires_grad = False
 
-		self.conv_first = nn.Conv1d(1280, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
+		self.conv_first = nn.Conv1d(self.embed_dim, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
 		# self.conv_second = nn.Conv1d(512, 256, kernel_size=self.kernel_size, padding='same')
 		# self.conv_third = nn.Conv1d(256, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
 		self.conv_last = nn.Conv1d(self.hidden_size1, self.hidden_size1, kernel_size=self.kernel_size, padding='same')
@@ -115,17 +117,18 @@ class Net(nn.Module):
 		return pid_len_dict
 
 	def load_prot_embed(self):
-		path = './p_embed'
+		path = f'./p_embed_{self.embed_model}'
+		dim = int(self.embed_model[1:])
 		embedding = {}
 		for pid in self.prot_len_dict.keys():
 			if self.prot_len_dict[pid] > 2048:
 				continue
-			embedding[pid] = torch.load(f'{path}/{pid}.pt')['representations'][33].cuda()
+			embedding[pid] = torch.load(f'{path}/{pid}.pt')['representations'][dim].cuda()
 		return embedding
 
 	def getProtEmbed(self, pids):
 		max_len = max([self.prot_len_dict[pid] for pid in pids])
-		batch_embedding = torch.zeros((len(pids), max_len, 1280)).cuda()
+		batch_embedding = torch.zeros((len(pids), max_len, self.embed_dim)).cuda()
 		for i, pid in enumerate(pids):
 			batch_embedding[i, :self.prot_len_dict[pid]] = self.prot_embed[pid]
 		return batch_embedding
@@ -273,11 +276,11 @@ class Net(nn.Module):
 		return cf, pf
 	
 	
-	def forward(self, vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence):
+	def forward(self, vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, pids):
 		batch_size = vertex.size(0)
 		
 		atom_feature, super_feature = self.GraphConv_module(batch_size, vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask)
-		prot_feature = self.CNN_module(batch_size, seq_mask, sequence)
+		prot_feature = self.CNN_module(batch_size, seq_mask, pids)
 		
 		pairwise_pred = self.Pairwise_pred_module(batch_size, atom_feature, prot_feature, vertex_mask, seq_mask)
 		affinity_pred = self.Affinity_pred_module(batch_size, atom_feature, prot_feature, super_feature, vertex_mask, seq_mask, pairwise_pred)

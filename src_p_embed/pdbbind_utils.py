@@ -15,11 +15,11 @@ import random
 
 def setup_seed(seed):
      torch.manual_seed(seed)
-     torch.cuda.manual_seed_all(seed)
+     torch.cuda.manual_seed(seed)
      np.random.seed(seed)
      random.seed(seed)
      torch.backends.cudnn.deterministic = True
-#setup_seed(100)
+setup_seed(42)
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
 atom_fdim = len(elem_list) + 6 + 6 + 6 + 1
@@ -106,7 +106,7 @@ def add_index(input_array, ebd_size):
 
 #function for generating batch data
 def batch_data_process(data):
-	vertex, edge, atom_adj, bond_adj, nbs, sequence, pids = data
+	vertex, edge, atom_adj, bond_adj, nbs, sequence = data
 	
 	vertex_mask = get_mask(vertex)
 	vertex = pack1D(vertex)
@@ -121,7 +121,7 @@ def batch_data_process(data):
 
 	# pad protein embedding
 	# sequence dim [batch_size, padded_length] -> protein language model embedding [batch_size, padded_length, embedding dim]
-	# prot_embedding = getProtEmbed("./p_embed", pids)
+	# prot_embedding = getProtEmbed("./p_embed_t33", pids)
 	
 	#add index
 	atom_adj = add_index(atom_adj, np.shape(atom_adj)[1])
@@ -139,7 +139,7 @@ def batch_data_process(data):
 	# prot_embedding = torch.FloatTensor(prot_embedding).cuda()
 	# sequence = torch.LongTensor(sequence).cuda()
 	
-	return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, pids
+	return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask
 
 
 # load data

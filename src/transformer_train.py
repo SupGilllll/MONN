@@ -12,15 +12,18 @@ from torch.autograd import Variable
 import torch.optim as optim
 
 from pdbbind_utils import *
-from CPI_model import *
+from transformer_model import *
 
 # no RNN
 #train and evaluate
-def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num_epoch=30):
-    init_A, init_B, init_W = loading_emb(measure, embedding)
-    net = Net(init_A, init_B, init_W, params)
-    net.cuda()
-    net.apply(weights_init)
+
+def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num_epoch=30): 
+    init_atoms, _, init_residues = loading_emb(measure, embedding)
+    d_encoder, d_decoder, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward = params
+    net = Transformer(init_atoms = init_atoms, init_residues = init_residues, 
+                      d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
+                      nhead = nhead, num_encoder_layers = num_encoder_layers, 
+                      num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda()
     net.train()
     pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
     print('total num params', pytorch_total_params)
@@ -28,7 +31,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
     criterion1 = nn.MSELoss()
     criterion2 = Masked_BCELoss()
 
-    optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad], lr=0.0005, weight_decay=0, amsgrad=True)
+    optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad], lr=0.001, amsgrad=True)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     shuffle_index = np.arange(len(train_data[0]))
@@ -40,35 +43,34 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
         for param_group in optimizer.param_groups:
             print('learning rate:', param_group['lr'])
 
-        train_output_list = []
-        train_label_list = []
         total_loss = 0
         affinity_loss = 0
         pairwise_loss = 0
 
-        for i in range(math.ceil(len(train_data[0])/batch_size)):
+        for i in range(math.ceil(len(train_data[0])/batch_size)):   
             if i % 20 == 0:
                 print('epoch', epoch, 'batch', i)
 
-            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, _, affinity_label, pairwise_mask, pairwise_label = \
+            input_vertex, _, _, _, _, input_seq, _, affinity_label, pairwise_mask, pairwise_label = \
                 [train_data[data_idx][shuffle_index[i * batch_size:(i+1)*batch_size]] for data_idx in range(10)]
             actual_batch_size = len(input_vertex)
 
-            inputs = [input_vertex, input_edge, input_atom_adj,
-                      input_bond_adj, input_num_nbs, input_seq]
-            vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(inputs)
+            inputs = [input_vertex, input_seq]
+            vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask = batch_data_process_transformer(inputs)
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
-            pairwise_label = torch.FloatTensor(
-                pad_label_2d(pairwise_label, vertex, sequence)).cuda()
+            pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, vertex, sequence)).cuda()
 
             optimizer.zero_grad()
-            affinity_pred, pairwise_pred = net(vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence)
+            affinity_pred, pairwise_pred = net(src = sequence, tgt = vertex, src_key_padding_mask = model_protein_mask, 
+                                tgt_key_padding_mask = model_compound_mask, memory_key_padding_mask = model_protein_mask)
 
             loss_aff = criterion1(affinity_pred, affinity_label)
-            loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, vertex_mask, seq_mask)
+            loss_pairwise = criterion2(
+                pairwise_pred, pairwise_label, pairwise_mask, vertex_mask, seq_mask)
             loss = loss_aff + 0.1*loss_pairwise
+            # loss = loss_aff + loss_pairwise
             # loss_aff = criterion1(affinity_pred, affinity_label)
             # loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, vertex_mask, seq_mask)
             # loss = loss_aff
@@ -78,7 +80,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
             pairwise_loss += float(loss_pairwise.data*actual_batch_size)
 
             loss.backward()
-            nn.utils.clip_grad_norm_(net.parameters(), 5)
+            # nn.utils.clip_grad_norm_(net.parameters(), 5)
             optimizer.step()
 
         scheduler.step()
@@ -123,16 +125,14 @@ def test(net, test_data, batch_size):
     pairwise_auc_list = []
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
-            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, aff_label, pairwise_mask, pairwise_label = \
+            input_vertex, _, _, _, _, input_seq, pids, aff_label, pairwise_mask, pairwise_label = \
                 [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(10)]
-
-            inputs = [input_vertex, input_edge, input_atom_adj,
-                    input_bond_adj, input_num_nbs, input_seq]
-            vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(
-                inputs)
-            affinity_pred, pairwise_pred = net(
-                vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence)
             
+            inputs = [input_vertex, input_seq]
+            vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask = batch_data_process_transformer(inputs)
+            affinity_pred, pairwise_pred = net(src = sequence, tgt = vertex, src_key_padding_mask = model_protein_mask, 
+                                               tgt_key_padding_mask = model_compound_mask, memory_key_padding_mask = model_protein_mask)
+
             for j in range(len(pairwise_mask)):
                 if pairwise_mask[j]:
                     num_vertex = int(torch.sum(vertex_mask[j, :]))
@@ -162,45 +162,42 @@ def test(net, test_data, batch_size):
 if __name__ == "__main__":
     torch.cuda.set_device(1)
     os.chdir('/data/zhao/MONN/src')
-    measure = 'KIKD'  # IC50 or KIKD
-    setting = 'new_protein'   # new_compound, new_protein or new_new
-    clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
-    embedding = 'blosum62'
-    # evaluate scheme
-    # measure = sys.argv[1]  # IC50 or KIKD
-    # setting = sys.argv[2]   # new_compound, new_protein or new_new
-    # clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
-    # embedding = sys.argv[4]
-    n_epoch = 30
+    # measure = 'KIKD'  # IC50 or KIKD
+    # setting = 'new_protein'   # new_compound, new_protein or new_new
+    # clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
+    # embedding = 'blosum62'
+
+    measure = sys.argv[1]  # IC50 or KIKD
+    setting = sys.argv[2]   # new_compound, new_protein or new_new
+    clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
+    embedding = sys.argv[4]
+    n_epoch = 100
     n_rep = 5
 
     assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
     assert clu_thre in [0.3, 0.4, 0.5, 0.6]
     assert measure in ['IC50', 'KIKD']
     assert embedding in ['blosum62', 'one-hot']
-    GNN_depth, inner_CNN_depth, DMA_depth = 4, 2, 2
-    if setting == 'new_compound':
+    
+    # device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
+    d_encoder = {'blosum62': 20, 'one-hot': 20}
+    d_decoder = 82
+    d_model = 128
+    nhead = 2
+    num_encoder_layers = 1
+    num_decoder_layers = 1
+    dim_feedforward = 512
+    batch_size = 32
+    if setting == 'new_compound' or setting == 'new_protein':
         n_fold = 5
-        batch_size = 32
-        k_head, kernel_size, hidden_size1, hidden_size2 = 2, 7, 128, 128
-    elif setting == 'new_protein':
-        n_fold = 5
-        batch_size = 32
-        k_head, kernel_size, hidden_size1, hidden_size2 = 1, 5, 128, 128
     elif setting == 'new_new':
         n_fold = 9
-        batch_size = 32
-        k_head, kernel_size, hidden_size1, hidden_size2 = 1, 7, 128, 128
-    para_names = ['GNN_depth', 'inner_CNN_depth', 'DMA_depth',
-                  'k_head', 'kernel_size', 'hidden_size1', 'hidden_size2']
 
-    params = [GNN_depth, inner_CNN_depth, DMA_depth,
-              k_head, kernel_size, hidden_size1, hidden_size2]
-    #params = sys.argv[4].split(',')
-    #params = map(int, params)
+    para_names = ['d_model', 'd_decoder', 'd_model', 'nhead', 'num_encoder_layers',
+                  'num_decoder_layers', 'dim_feedforward']
+    params = [d_encoder[embedding], d_decoder, d_model, nhead, num_encoder_layers,
+              num_decoder_layers, dim_feedforward]
 
-    with open('../preprocessing/surface_area_dict', 'rb') as f:
-        surface_area_dict = pickle.load(f)
     # print evaluation scheme
     print('Dataset: PDBbind v2021 with measurement', measure)
     print('Experiment setting', setting)
@@ -208,7 +205,10 @@ if __name__ == "__main__":
     print('Protein embedding', embedding)
     print('Number of epochs:', n_epoch)
     print('Number of repeats:', n_rep)
-    print('Hyper-parameters:', [para_names[i] + ':'+str(params[i]) for i in range(7)])
+    print('Hyper-parameters:', [para_names[i] + ' : ' +
+          str(params[i]) for i in range(len(para_names))])
+    with open('../preprocessing/surface_area_dict', 'rb') as f:
+        surface_area_dict = pickle.load(f)
     all_start_time = time.time()
 
     rep_all_list = []

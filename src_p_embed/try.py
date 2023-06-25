@@ -41,27 +41,30 @@ os.chdir('/data/zhao/MONN/src_p_embed')
 # if set(fasta_id_list) == set(uniprot_id_list):
 #     print('identical')
 
-# data = torch.load('./p_embed/B6HWK0.pt')
-# embedding = data['representations'][33]
-# print('happy')
+data = torch.load('./p_embed_t36/B6HWK0.pt')
+embedding1 = data['representations'][36]
+embedding2 = list(data['representations'].values())[0]
+print(torch.equal(embedding1, embedding2))
+print(type(embedding1), type(embedding2))
+print('happy')
 
-max_len = 0
-cnt = 0
-pid = ''
-seq = ''
-pid_len_dict = {}
-with open('./uniprot_all.fasta', 'r') as f:
-    for line in f.readlines():
-        if line[0] == '>':
-            max_len = max(max_len, len(seq))
-            if len(seq) > 1500:
-                cnt += 1
-            if pid != '':
-                pid_len_dict[pid] = len(seq)
-            pid = line.strip()[1:]
-            seq = '' 
-        else:
-            seq += line.strip()
-    pid_len_dict[pid] = len(seq)
-with open('./pid_len_dict', 'wb') as f:
-    pickle.dump(pid_len_dict, f)
+# max_len = 0
+# cnt = 0
+# pid = ''
+# seq = ''
+# pid_len_dict = {}
+# with open('./uniprot_all.fasta', 'r') as f:
+#     for line in f.readlines():
+#         if line[0] == '>':
+#             max_len = max(max_len, len(seq))
+#             if len(seq) > 1500:
+#                 cnt += 1
+#             if pid != '':
+#                 pid_len_dict[pid] = len(seq)
+#             pid = line.strip()[1:]
+#             seq = '' 
+#         else:
+#             seq += line.strip()
+#     pid_len_dict[pid] = len(seq)
+# with open('./pid_len_dict', 'wb') as f:
+#     pickle.dump(pid_len_dict, f)

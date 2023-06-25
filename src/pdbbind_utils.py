@@ -15,11 +15,11 @@ import random
 
 def setup_seed(seed):
      torch.manual_seed(seed)
-     torch.cuda.manual_seed_all(seed)
+     torch.cuda.manual_seed(seed)
      np.random.seed(seed)
      random.seed(seed)
      torch.backends.cudnn.deterministic = True
-#setup_seed(100)
+setup_seed(42)
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
 atom_fdim = len(elem_list) + 6 + 6 + 6 + 1
@@ -33,9 +33,9 @@ def reg_scores(label, pred):
 	return rmse(label, pred), pearson(label, pred), spearman(label, pred)
 
 
-def load_blosum62():
+def load_blosum62(embedding_method):
 	blosum_dict = {}
-	f = open('blosum62.txt')
+	f = open(f'{embedding_method}.txt')
 	lines = f.readlines()
 	f.close()
 	skip =1 
@@ -136,15 +136,36 @@ def batch_data_process(data):
 	
 	return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence
 
+def batch_data_process_transformer(data):
+	vertex, sequence = data
+	
+	vertex_mask = get_mask(vertex)
+	model_compound_mask = torch.BoolTensor(1 - vertex_mask).cuda()
+	vertex = pack1D(vertex)
+	
+	#pad proteins and make masks
+	seq_mask = get_mask(sequence)
+	model_protein_mask = torch.BoolTensor(1 - seq_mask).cuda()
+	sequence = pack1D(sequence+1)
+	
+	#convert to torch cuda data type
+	vertex_mask = torch.FloatTensor(vertex_mask).cuda()
+	vertex = torch.LongTensor(vertex).cuda()
+	
+	seq_mask = torch.FloatTensor(seq_mask).cuda()
+	sequence = torch.LongTensor(sequence).cuda()	
+	
+	return vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask
 
 # load data
 def data_from_index(data_pack, idx_list):
 	fa, fb, anb, bnb, nbs_mat, seq_input = [data_pack[i][idx_list] for i in range(6)]
 	aff_label = data_pack[6][idx_list].astype(float).reshape(-1,1)
 	#cid, pid = [data_pack[i][idx_list] for i in range(7,9)]
+	pid = data_pack[8][idx_list]
 	pairwise_mask = data_pack[9][idx_list].astype(float).reshape(-1,1)
 	pairwise_label = data_pack[10][idx_list]
-	return [fa, fb, anb, bnb, nbs_mat, seq_input, aff_label, pairwise_mask, pairwise_label]
+	return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label]
 
 
 def split_train_test_clusters(measure, clu_thre, n_fold):
@@ -309,7 +330,7 @@ def load_data(measure, setting, clu_thre, n_fold):
 
 
 # network utils
-def loading_emb(measure):
+def loading_emb(measure, embedding_method):
 	#load intial atom and bond features (i.e., embeddings)
 	f = open('../preprocessing/pdbbind_all_atom_dict_'+measure, 'rb')
 	atom_dict = pickle.load(f)
@@ -335,7 +356,7 @@ def loading_emb(measure):
 	for key,value in bond_dict.items():
 		init_bond_features[value] = np.array(list(map(int, key)))
 	
-	blosum_dict = load_blosum62()
+	blosum_dict = load_blosum62(embedding_method)
 	for key, value in word_dict.items():
 		if key not in blosum_dict:
 			continue
