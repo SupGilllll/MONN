@@ -10,9 +10,11 @@ from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.optim as optim
+from sklearn.metrics import roc_auc_score
 
-from pdbbind_utils import *
+from transformer_utils import *
 from transformer_model import *
+# from CPI_model1 import *
 
 # no RNN
 #train and evaluate
@@ -22,8 +24,13 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
     d_encoder, d_decoder, d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward = params
     net = Transformer(init_atoms = init_atoms, init_residues = init_residues, 
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
-                      nhead = nhead, num_encoder_layers = num_encoder_layers, 
+                      nhead = nhead, num_encoder_layers = num_encoder_layers, activation = "gelu",
                       num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda()
+    
+    # params = [2, 5, 128, 128]
+    # net = Net(init_atoms, init_residues, params).cuda()
+    # net.apply(weights_init)
+
     net.train()
     pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
     print('total num params', pytorch_total_params)
@@ -31,7 +38,8 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
     criterion1 = nn.MSELoss()
     criterion2 = Masked_BCELoss()
 
-    optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad], lr=0.001, amsgrad=True)
+    # optimizer = optim.Adam([p for p in net.parameters() if p.requires_grad], lr=1e-4, weight_decay=0, amsgrad=True)
+    optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=0, amsgrad=True)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     shuffle_index = np.arange(len(train_data[0]))
@@ -47,7 +55,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
         affinity_loss = 0
         pairwise_loss = 0
 
-        for i in range(math.ceil(len(train_data[0])/batch_size)):   
+        for i in range(math.ceil(len(train_data[0])/batch_size)):
             if i % 20 == 0:
                 print('epoch', epoch, 'batch', i)
 
@@ -56,19 +64,19 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
             actual_batch_size = len(input_vertex)
 
             inputs = [input_vertex, input_seq]
-            vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask = batch_data_process_transformer(inputs)
+            compound, protein, compound_mask, protein_mask = batch_data_process_transformer(inputs)
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
-            pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, vertex, sequence)).cuda()
+            pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             optimizer.zero_grad()
-            affinity_pred, pairwise_pred = net(src = sequence, tgt = vertex, src_key_padding_mask = model_protein_mask, 
-                                tgt_key_padding_mask = model_compound_mask, memory_key_padding_mask = model_protein_mask)
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, src_key_padding_mask = protein_mask, 
+                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
+            # affinity_pred, pairwise_pred = net(vertex_mask, vertex, seq_mask, sequence)
 
             loss_aff = criterion1(affinity_pred, affinity_label)
-            loss_pairwise = criterion2(
-                pairwise_pred, pairwise_label, pairwise_mask, vertex_mask, seq_mask)
+            loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
             loss = loss_aff + 0.1*loss_pairwise
             # loss = loss_aff + loss_pairwise
             # loss_aff = criterion1(affinity_pred, affinity_label)
@@ -80,7 +88,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
             pairwise_loss += float(loss_pairwise.data*actual_batch_size)
 
             loss.backward()
-            # nn.utils.clip_grad_norm_(net.parameters(), 5)
+            nn.utils.clip_grad_norm_(net.parameters(), 5)
             optimizer.step()
 
         scheduler.step()
@@ -132,7 +140,8 @@ def test(net, test_data, batch_size):
             vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask = batch_data_process_transformer(inputs)
             affinity_pred, pairwise_pred = net(src = sequence, tgt = vertex, src_key_padding_mask = model_protein_mask, 
                                                tgt_key_padding_mask = model_compound_mask, memory_key_padding_mask = model_protein_mask)
-
+            # affinity_pred, pairwise_pred = net(vertex_mask, vertex, seq_mask, sequence)
+            
             for j in range(len(pairwise_mask)):
                 if pairwise_mask[j]:
                     num_vertex = int(torch.sum(vertex_mask[j, :]))
@@ -160,25 +169,21 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
+    setup_seed()
     torch.cuda.set_device(1)
     os.chdir('/data/zhao/MONN/src')
-    # measure = 'KIKD'  # IC50 or KIKD
-    # setting = 'new_protein'   # new_compound, new_protein or new_new
-    # clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
-    # embedding = 'blosum62'
+    measure = 'KIKD'  # IC50 or KIKD
+    setting = 'new_protein'   # new_compound, new_protein or new_new
+    clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
+    embedding = 'blosum62'
 
-    measure = sys.argv[1]  # IC50 or KIKD
-    setting = sys.argv[2]   # new_compound, new_protein or new_new
-    clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
-    embedding = sys.argv[4]
-    n_epoch = 100
+    # measure = sys.argv[1]  # IC50 or KIKD
+    # setting = sys.argv[2]   # new_compound, new_protein or new_new
+    # clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
+    # embedding = sys.argv[4]
+    n_epoch = 50
     n_rep = 5
-
-    assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
-    assert clu_thre in [0.3, 0.4, 0.5, 0.6]
-    assert measure in ['IC50', 'KIKD']
-    assert embedding in ['blosum62', 'one-hot']
-    
+    lr = 1e-4
     # device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
     d_encoder = {'blosum62': 20, 'one-hot': 20}
     d_decoder = 82
@@ -193,7 +198,12 @@ if __name__ == "__main__":
     elif setting == 'new_new':
         n_fold = 9
 
-    para_names = ['d_model', 'd_decoder', 'd_model', 'nhead', 'num_encoder_layers',
+    assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
+    assert clu_thre in [0.3, 0.4, 0.5, 0.6]
+    assert measure in ['IC50', 'KIKD']
+    assert embedding in ['blosum62', 'one-hot']
+
+    para_names = ['d_encoder', 'd_decoder', 'd_model', 'nhead', 'num_encoder_layers',
                   'num_decoder_layers', 'dim_feedforward']
     params = [d_encoder[embedding], d_decoder, d_model, nhead, num_encoder_layers,
               num_decoder_layers, dim_feedforward]
@@ -205,8 +215,7 @@ if __name__ == "__main__":
     print('Protein embedding', embedding)
     print('Number of epochs:', n_epoch)
     print('Number of repeats:', n_rep)
-    print('Hyper-parameters:', [para_names[i] + ' : ' +
-          str(params[i]) for i in range(len(para_names))])
+    print('Hyper-parameters:', [para_names[i] + ' : ' + str(params[i]) for i in range(len(para_names))])
     with open('../preprocessing/surface_area_dict', 'rb') as f:
         surface_area_dict = pickle.load(f)
     all_start_time = time.time()

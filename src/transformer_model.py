@@ -664,6 +664,8 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
         return F.relu
     elif activation == "gelu":
         return F.gelu
+    elif activation == 'leakyrelu':
+        return F.leaky_relu
 
     raise RuntimeError(
         "activation should be relu/gelu, not {}".format(activation))

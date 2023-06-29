@@ -16,6 +16,7 @@ from CPI_model import *
 
 # no RNN
 #train and evaluate
+
 def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num_epoch=30):
     init_A, init_B, init_W = loading_emb(measure, embedding)
     net = Net(init_A, init_B, init_W, params)
@@ -60,8 +61,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
-            pairwise_label = torch.FloatTensor(
-                pad_label_2d(pairwise_label, vertex, sequence)).cuda()
+            pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, vertex, sequence)).cuda()
 
             optimizer.zero_grad()
             affinity_pred, pairwise_pred = net(vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence)
@@ -125,13 +125,11 @@ def test(net, test_data, batch_size):
         for i in range(math.ceil(len(test_data[0])/batch_size)):
             input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, aff_label, pairwise_mask, pairwise_label = \
                 [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(10)]
-
+            
             inputs = [input_vertex, input_edge, input_atom_adj,
                     input_bond_adj, input_num_nbs, input_seq]
-            vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(
-                inputs)
-            affinity_pred, pairwise_pred = net(
-                vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence)
+            vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence = batch_data_process(inputs)
+            affinity_pred, pairwise_pred = net(vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence)
             
             for j in range(len(pairwise_mask)):
                 if pairwise_mask[j]:
@@ -166,7 +164,7 @@ if __name__ == "__main__":
     setting = 'new_protein'   # new_compound, new_protein or new_new
     clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
     embedding = 'blosum62'
-    # evaluate scheme
+
     # measure = sys.argv[1]  # IC50 or KIKD
     # setting = sys.argv[2]   # new_compound, new_protein or new_new
     # clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
@@ -208,7 +206,7 @@ if __name__ == "__main__":
     print('Protein embedding', embedding)
     print('Number of epochs:', n_epoch)
     print('Number of repeats:', n_rep)
-    print('Hyper-parameters:', [para_names[i] + ':'+str(params[i]) for i in range(7)])
+    print('Hyper-parameters:', [para_names[i] + ':' + str(params[i]) for i in range(7)])
     all_start_time = time.time()
 
     rep_all_list = []
