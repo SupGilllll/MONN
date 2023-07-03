@@ -149,7 +149,8 @@ def batch_data_process_transformer(data):
     seq_mask = torch.FloatTensor(seq_mask).cuda()
     sequence = torch.LongTensor(sequence).cuda()	
     
-    return vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask
+    # return vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask
+    return vertex, sequence, model_compound_mask, model_protein_mask
 
 # load data
 def data_from_index(data_pack, idx_list):
