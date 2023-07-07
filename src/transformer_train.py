@@ -14,7 +14,7 @@ from sklearn.metrics import roc_auc_score
 import optuna
 
 from transformer_utils import *
-from transformer_model import *
+# from transformer_model import *
 
 # no RNN
 #train and evaluate
@@ -149,7 +149,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
@@ -160,6 +160,7 @@ def parse_args():
     parser.add_argument('--epochs', type = int, default = 40)
     parser.add_argument('--batch_size', type = int, default = 32)
     parser.add_argument('--lr', type = float, default = 5.5e-4)
+    parser.add_argument('--pos_encoding', type = str, default = 'none')
     parser.add_argument('--num_layers', type = int, default = 2)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
@@ -273,6 +274,12 @@ def objective(trail):
 if __name__ == "__main__":
     os.chdir('/data/zhao/MONN/src')
     args = parse_args()
+    if args.pos_encoding == 'none':
+        from transformer_model import *
+    elif args.pos_encoding == 'absolute':
+        from transformer_model_absolute import *
+    elif args.pos_encoding == 'relative':
+        from transformer_model_relative import *
     # st = time.time()
     # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
     # study.optimize(objective, n_trials = 120)
