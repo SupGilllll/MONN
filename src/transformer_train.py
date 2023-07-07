@@ -20,12 +20,12 @@ from transformer_model import *
 #train and evaluate
 
 def train_and_eval(train_data, valid_data, test_data, params):
-    measure, setting, clu_thre, embedding, n_rep, epochs, batch_size, lr, num_encoder_layers, \
+    measure, setting, clu_thre, embedding, activation, n_rep, epochs, batch_size, lr, num_encoder_layers, \
     num_decoder_layers, d_encoder, d_decoder, d_model, dim_feedforward, nhead = params
     init_atoms, _, init_residues = loading_emb(measure, embedding)
     net = Transformer(init_atoms = init_atoms, init_residues = init_residues, 
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
-                      nhead = nhead, num_encoder_layers = num_encoder_layers, activation = "gelu",
+                      nhead = nhead, num_encoder_layers = num_encoder_layers, activation = activation,
                       num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda()  
     net.train()
     pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
@@ -154,16 +154,18 @@ def parse_args():
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
-    parser.add_argument('--n_rep', type = int, default = 1)
-    parser.add_argument('--epochs', type = int, default = 20)
+    parser.add_argument('--activation', type = str, default = 'gelu')
+    parser.add_argument('--optimizer', type = str, default = 'Adam')
+    parser.add_argument('--n_rep', type = int, default = 5)
+    parser.add_argument('--epochs', type = int, default = 40)
     parser.add_argument('--batch_size', type = int, default = 32)
-    parser.add_argument('--lr', type = float, default = 5e-4)
-    parser.add_argument('--num_layers', type = int, default = 1)
+    parser.add_argument('--lr', type = float, default = 5.5e-4)
+    parser.add_argument('--num_layers', type = int, default = 2)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
-    parser.add_argument('--d_model', type = int, default = 128)
+    parser.add_argument('--d_model', type = int, default = 256)
     parser.add_argument('--dim_feedforward', type = int, default = 512)
-    parser.add_argument('--nhead', type = int, default = 1)
+    parser.add_argument('--nhead', type = int, default = 4)
 
     args = parser.parse_args()
     return args
@@ -176,6 +178,7 @@ def main(args):
     setting = args.setting   # new_compound, new_protein or new_new
     clu_thre = args.clu_thre  # 0.3, 0.4, 0.5 or 0.6
     embedding = args.embedding
+    activation = args.activation
     n_rep = args.n_rep
     epochs = args.epochs
     batch_size = args.batch_size
@@ -198,10 +201,10 @@ def main(args):
     assert measure in ['IC50', 'KIKD']
     assert embedding in ['blosum62', 'one-hot']
     
-    para_names = ['measure', 'setting', 'clu_thre', 'embedding', 'n_rep', 'epochs', 'batch_size', 
-                  'lr', 'num_encoder_layers', 'num_decoder_layers', 'd_encoder', 'd_decoder', 
-                  'd_model', 'dim_feedforward', 'nhead']
-    params = [measure, setting, clu_thre, embedding, n_rep, epochs, batch_size, lr, num_encoder_layers,
+    para_names = ['measure', 'setting', 'clu_thre', 'embedding', 'activation', 'n_rep', 'epochs', 'batch_size', 
+                  'lr', 'num_encoder_layers', 'num_decoder_layers', 'd_encoder', 'd_decoder', 'd_model', 
+                  'dim_feedforward', 'nhead']
+    params = [measure, setting, clu_thre, embedding, activation, n_rep, epochs, batch_size, lr, num_encoder_layers,
               num_decoder_layers, d_encoder[embedding], d_decoder, d_model, dim_feedforward, nhead]
 
     # print evaluation scheme
@@ -258,27 +261,29 @@ def main(args):
     return np.mean(rep_all_list, axis=0)[0]
 
 def objective(trail):
-    args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
+    args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 5e-5)
     args.num_layers = trail.suggest_int('num_layers', 1, 2)
     args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 16)
-    args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4, 8])
+    args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4])
+    args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu'])
+    # args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'RAdam', 'SGD'])
     rmse = main(args)
     return rmse
 
 if __name__ == "__main__":
     os.chdir('/data/zhao/MONN/src')
     args = parse_args()
-    st = time.time()
-    study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
-    study.optimize(objective, n_trials = 120)
-    print(study.best_params)
-    print(study.best_trial)
-    print(study.best_trial.value)
-    print(format((time.time() - st) / 3600.0, ".3f"))
-    fig1 = optuna.visualization.plot_contour(study)
-    fig2 = optuna.visualization.plot_optimization_history(study)
-    fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/0710/contour.html')
-    fig2.write_html('../results/0710/optimization_history.html') 
-    fig3.write_html('../results/0710/param_importances.html') 
-    # main(parse_args())
+    # st = time.time()
+    # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
+    # study.optimize(objective, n_trials = 120)
+    # print(study.best_params)
+    # print(study.best_trial)
+    # print(study.best_trial.value)
+    # print(format((time.time() - st) / 3600.0, ".3f"))
+    # fig1 = optuna.visualization.plot_contour(study)
+    # fig2 = optuna.visualization.plot_optimization_history(study)
+    # fig3 = optuna.visualization.plot_param_importances(study)
+    # fig1.write_html('../results/0710/contour.html')
+    # fig2.write_html('../results/0710/optimization_history.html') 
+    # fig3.write_html('../results/0710/param_importances.html') 
+    main(args)

@@ -357,12 +357,16 @@ def _get_clones(module, N):
 
 
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
-    if activation == "relu":
+    if activation == 'relu':
         return F.relu
-    elif activation == "gelu":
-        return F.gelu
-    elif activation == 'leakyrelu':
+    elif activation == 'elu':
+        return F.elu
+    elif activation == 'leaky_relu':
         return F.leaky_relu
+    elif activation == 'gelu':
+        return F.gelu
+    elif activation == 'tanh':
+        return F.tanh
 
     raise RuntimeError(
         "activation should be relu/gelu, not {}".format(activation))
