@@ -22,7 +22,7 @@ from transformer_utils import *
 def train_and_eval(train_data, valid_data, test_data, params):
     measure, setting, clu_thre, embedding, activation, n_rep, epochs, batch_size, lr, num_encoder_layers, \
     num_decoder_layers, d_encoder, d_decoder, d_model, dim_feedforward, nhead = params
-    init_atoms, _, init_residues = loading_emb(measure, embedding)
+    init_atoms, _, init_residues = loading_emb(measure, 'blosum62')
     net = Transformer(init_atoms = init_atoms, init_residues = init_residues, 
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
                       nhead = nhead, num_encoder_layers = num_encoder_layers, activation = activation,
@@ -54,7 +54,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
             if i % 20 == 0:
                 print('epoch', epoch, 'batch', i)
 
-            input_vertex, _, _, _, _, input_seq, _, affinity_label, pairwise_mask, pairwise_label = \
+            input_vertex, _, _, _, _, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
                 [train_data[data_idx][shuffle_index[i * batch_size:(i+1)*batch_size]] for data_idx in range(10)]
             actual_batch_size = len(input_vertex)
 
@@ -66,7 +66,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
             pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             optimizer.zero_grad()
-            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, src_key_padding_mask = protein_mask, 
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
                                 tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
 
             loss_aff = criterion1(affinity_pred, affinity_label)
@@ -119,7 +119,7 @@ def test(net, test_data, batch_size):
             
             inputs = [input_vertex, input_seq]
             compound, protein, compound_mask, protein_mask = batch_data_process_transformer(inputs)
-            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, src_key_padding_mask = protein_mask, 
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
                                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
             
             vertex_mask = 1 - compound_mask.float()
@@ -149,7 +149,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
+    parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
@@ -186,7 +186,7 @@ def main(args):
     lr = args.lr
     num_encoder_layers = args.num_layers
     num_decoder_layers = args.num_layers
-    d_encoder = {'blosum62': 20, 'one-hot': 20}
+    d_encoder = {'blosum62' : 20, 'one-hot' : 20, 't33' : 1280}
     d_decoder = args.d_decoder
     d_model = args.d_model
     # dim_feedforward = args.dim_feedforward
@@ -200,7 +200,7 @@ def main(args):
     assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
     assert clu_thre in [0.3, 0.4, 0.5, 0.6]
     assert measure in ['IC50', 'KIKD']
-    assert embedding in ['blosum62', 'one-hot']
+    assert embedding in ['blosum62', 'one-hot', 't33']
     
     para_names = ['measure', 'setting', 'clu_thre', 'embedding', 'activation', 'n_rep', 'epochs', 'batch_size', 
                   'lr', 'num_encoder_layers', 'num_decoder_layers', 'd_encoder', 'd_decoder', 'd_model', 
@@ -212,7 +212,7 @@ def main(args):
     print('Dataset: PDBbind v2021 with measurement', measure)
     print('Experiment setting', setting)
     print('Clustering threshold:', clu_thre)
-    print('Protein embedding', embedding)
+    print('Protein embedding:', embedding)
     print('Number of epochs:', epochs)
     print('Number of repeats:', n_rep)
     print('Hyper-parameters:', [para_names[i] + ' : ' + str(params[i]) for i in range(len(para_names))])
@@ -274,7 +274,9 @@ def objective(trail):
 if __name__ == "__main__":
     os.chdir('/data/zhao/MONN/src')
     args = parse_args()
-    if args.pos_encoding == 'none':
+    if args.embedding == 't33':
+        from transformer_model_t33 import *
+    elif args.pos_encoding == 'none':
         from transformer_model import *
     elif args.pos_encoding == 'absolute':
         from transformer_model_absolute import *

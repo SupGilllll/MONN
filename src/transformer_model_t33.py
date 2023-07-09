@@ -1,4 +1,5 @@
 import copy
+import pickle
 from typing import Optional, Any, Union, Callable
 
 import torch
@@ -38,13 +39,14 @@ class Transformer(nn.Module):
 
         self.batch_first = batch_first
         self.compound_embedding = nn.Embedding.from_pretrained(init_atoms)
-        self.protein_embedding = nn.Embedding.from_pretrained(init_residues)
+        self.prot_len_dict = self.load_prot_len_dict()
+        self.prot_embed = self.load_prot_embed()
 
     def forward(self, src: Tensor, tgt: Tensor, pids = None, src_mask: Optional[Tensor] = None, tgt_mask: Optional[Tensor] = None,
                 memory_mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None, memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
               
-        embed_src = self.protein_embedding_block(src)
+        embed_src = self.protein_embedding_block(pids)
         memory = self.encoder(embed_src, mask=src_mask,
                               src_key_padding_mask=src_key_padding_mask)
         
@@ -68,8 +70,8 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def protein_embedding_block(self, residues):
-        x1 = self.protein_embedding(residues)
+    def protein_embedding_block(self, pids):
+        x1 = self.getProtEmbed(pids)
         x2 = self.encoder_transform_layer(x1)
         return x2
     
@@ -77,6 +79,28 @@ class Transformer(nn.Module):
         y1 = self.compound_embedding(atoms)
         y2 = self.decoder_transform_layer(y1)
         return y2
+    
+    def load_prot_len_dict(self):
+        with open('./pid_len_dict', 'rb') as f:
+            pid_len_dict = pickle.load(f)
+        return pid_len_dict
+
+    def load_prot_embed(self, embed_model = 't33'):
+        path = f'../p_embed_{embed_model}'
+        dim = int(embed_model[1:])
+        embedding = {}
+        for pid in self.prot_len_dict.keys():
+            if self.prot_len_dict[pid] > 2048:
+                continue
+            embedding[pid] = torch.load(f'{path}/{pid}.pt')['representations'][dim].cuda()
+        return embedding
+
+    def getProtEmbed(self, pids, embed_dim = 1280):
+        max_len = max([self.prot_len_dict[pid] for pid in pids])
+        batch_embedding = torch.zeros((len(pids), max_len, embed_dim)).cuda()
+        for i, pid in enumerate(pids):
+            batch_embedding[i, :self.prot_len_dict[pid]] = self.prot_embed[pid]
+        return batch_embedding
 
 class TransformerEncoder(nn.Module):
     __constants__ = ['norm']

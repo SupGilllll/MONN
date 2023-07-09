@@ -79,5 +79,6 @@ import numpy as np
 # print(pairwise_mask.equal(z))
 # print(pairwise_mask.equal(n))
 
-print(5.5e-4)
+data = torch.zeros((1,2))
+print(data.dtype)
 
