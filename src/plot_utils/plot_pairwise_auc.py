@@ -3,8 +3,8 @@ import numpy as np
 
 # Sample data
 x = ['0.3', '0.4', '0.5']
-y1 = [0.81321491, 0.80459854, 0.79266345]
-y2 = [0.91108614, 0.90519285, 0.90158103]
+y1 = [0.858, 0.855, 0.845]
+y2 = [0.828, 0.828, 0.826]
 
 # Set up the figure and axis
 fig, ax = plt.subplots()
@@ -16,13 +16,13 @@ bar_width = 0.35
 x_pos = np.arange(len(x))
 
 # Create the bars for the first y-axis data
-ax.bar(x_pos, y1, width=bar_width, color='blue', label='Original Model')
+ax.bar(x_pos, y1, width=bar_width, color='blue', label='baseline model')
 
 # Shift the x-axis positions for the second set of bars
 x_pos_shifted = x_pos + bar_width
 
 # Create the bars for the second y-axis data
-ax.bar(x_pos_shifted, y2, width=bar_width, color='orange', label='Modified')
+ax.bar(x_pos_shifted, y2, width=bar_width, color='orange', label='proposed model')
 
 # Set the x-axis tick positions and labels
 ax.set_xticks(x_pos + bar_width / 2)
