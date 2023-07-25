@@ -34,33 +34,19 @@ def train_and_eval(train_data, valid_data, test_data, params):
     criterion1 = nn.MSELoss()
     criterion2 = Masked_BCELoss()
 
-    # optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
-    if opt == 'Adam':
-        optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
-    elif opt == 'RAdam':
-        optimizer = optim.RAdam(net.parameters(), lr=lr)
-    elif opt == 'Adagrad':
-        optimizer = optim.Adagrad(net.parameters(), lr=lr)
-    elif opt == 'SGD':
-        optimizer = optim.SGD(net.parameters(), lr=lr)
-    else:
-        optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
-
+    optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
     if sch == 'StepLR_1':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
-    elif sch == 'StepLR_10':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
-    elif sch == 'LinearLR':
-        scheduler = optim.lr_scheduler.LinearLR(optimizer)
-    elif sch == 'ReduceLROnPlateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode = 'min', factor = 0.5, patience = 5)
-    elif sch == 'none':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=1)
+    elif sch == 'StepLR_2':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.95)
+    elif sch == 'StepLR_4':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.95)
+    elif sch == 'StepLR_8':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=0.95)
     else:
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
-        # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     shuffle_index = np.arange(len(train_data[0]))
     min_rmse = 1000
@@ -105,7 +91,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
             nn.utils.clip_grad_norm_(net.parameters(), 5)
             optimizer.step()
 
-        
+        scheduler.step()
         loss_list = [total_loss, affinity_loss, pairwise_loss]
         loss_name = ['total loss', 'affinity loss', 'pairwise loss']
         print_loss = [loss_name[i] + ' ' + str(round(loss_list[i] / float(len(train_data[0])), 6)) for i in range(len(loss_name))]
@@ -113,10 +99,10 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
         perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC']
 
-        valid_performance, valid_label, valid_output, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
-        loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
-        print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
-        print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
+        valid_performance, valid_label, valid_output, total_loss, affinity_loss, pairwise_loss = test(net, valid_data, batch_size)
+        loss_list = [total_loss, affinity_loss, pairwise_loss]
+        print_loss = [loss_name[i] + ' ' + str(round(loss_list[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
+        print('epoch:', epoch, 'valiation loss', ' '.join(print_loss))
         
         if (1 + epoch) % 5 == 0:
             train_performance, train_label, train_output, _, _, _ = test(net, train_data, batch_size)
@@ -130,11 +116,6 @@ def train_and_eval(train_data, valid_data, test_data, params):
             test_performance, test_label, test_output, _, _, _ = test(net, test_data, batch_size)
         print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
         print('test ', len(test_output), ' '.join(print_perf))
-
-        if sch == 'ReduceLROnPlateau':
-            scheduler.step(total_loss_val)
-        else:
-            scheduler.step()
 
     print('Finished Training')
     return test_performance, test_label, test_output
@@ -201,7 +182,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
+    parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
@@ -210,7 +191,7 @@ def parse_args():
     parser.add_argument('--optimizer', type = str, default = 'Adam')
     parser.add_argument('--scheduler', type = str, default = 'StepLR')
     parser.add_argument('--n_rep', type = int, default = 1)
-    parser.add_argument('--epochs', type = int, default = 15)
+    parser.add_argument('--epochs', type = int, default = 30)
     parser.add_argument('--batch_size', type = int, default = 32)
     parser.add_argument('--lr', type = float, default = 5.5e-4)
     parser.add_argument('--pos_encoding', type = str, default = 'none')
@@ -318,21 +299,14 @@ def main(args):
     return np.mean(rep_all_list, axis=0)[0]
 
 def objective(trail):
-    args.lr = trail.suggest_categorical('lr', [1e-5, 5e-5] + np.linspace(1e-4, 1e-3, 19, dtype=float).tolist())
-    args.num_layers = trail.suggest_int('num_layers', 1, 2)
-    args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 32)
-    args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4, 8])
-    args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu', 'tanh'])
-    args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'RAdam', 'Adagrad', 'SGD'])
-    args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_10', 'LinearLR', 'ReduceLROnPlateau', 'none'])
-    # args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
+    args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
     # args.num_layers = trail.suggest_int('num_layers', 1, 2)
     # args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 16)
     # args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4])
     # args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu'])
     # args.optimizer = trail.suggest_categorical('optimizer', ['AdamW', 'RAdam', 'Adam'])
     # args.scheduler = trail.suggest_categorical('scheduler', ['StepLR', 'LinearLR', 'ReduceLROnPlateauMax', 'ReduceLROnPlateauMin'])
-    # args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_2', 'StepLR_4', 'StepLR_8', 'none'])
+    args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_2', 'StepLR_4', 'StepLR_8'])
     rmse = main(args)
     return rmse
 
@@ -349,7 +323,7 @@ if __name__ == "__main__":
         from transformer_model_relative import *
     st = time.time()
     study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
-    study.optimize(objective, n_trials = 240)
+    study.optimize(objective, n_trials = 40)
     print(study.best_params)
     print(study.best_trial)
     print(study.best_trial.value)
@@ -357,7 +331,7 @@ if __name__ == "__main__":
     fig1 = optuna.visualization.plot_contour(study)
     fig2 = optuna.visualization.plot_optimization_history(study)
     fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/0807/contour.html')
-    fig2.write_html('../results/0807/optimization_history.html') 
-    fig3.write_html('../results/0807/param_importances.html') 
+    fig1.write_html('../results/0724/contour.html')
+    fig2.write_html('../results/0724/optimization_history.html') 
+    fig3.write_html('../results/0724/param_importances.html') 
     # main(args)

@@ -91,7 +91,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
             optimizer.zero_grad()
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
-                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
+                                tgt_key_padding_mask = compound_mask)
 
             loss_aff = criterion1(affinity_pred, affinity_label)
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
@@ -164,7 +164,7 @@ def test(net, test_data, batch_size):
             l_pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
-                                               tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
+                                               tgt_key_padding_mask = compound_mask)
             
             loss_aff = criterion1(affinity_pred, l_affinity_label)
             loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
@@ -201,7 +201,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
+    parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
@@ -214,7 +214,7 @@ def parse_args():
     parser.add_argument('--batch_size', type = int, default = 32)
     parser.add_argument('--lr', type = float, default = 5.5e-4)
     parser.add_argument('--pos_encoding', type = str, default = 'none')
-    parser.add_argument('--num_layers', type = int, default = 2)
+    parser.add_argument('--num_layers', type = int, default = 1)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
     parser.add_argument('--d_model', type = int, default = 256)
@@ -319,7 +319,6 @@ def main(args):
 
 def objective(trail):
     args.lr = trail.suggest_categorical('lr', [1e-5, 5e-5] + np.linspace(1e-4, 1e-3, 19, dtype=float).tolist())
-    args.num_layers = trail.suggest_int('num_layers', 1, 2)
     args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 32)
     args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4, 8])
     args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu', 'tanh'])
@@ -342,14 +341,16 @@ if __name__ == "__main__":
     if args.embedding == 't33':
         from transformer_model_t33 import *
     elif args.pos_encoding == 'none':
-        from transformer_model import *
+        from transformer_model_novel import *
+    elif args.pos_encoding == 'none1':
+        from transformer_model_novel1 import *
     elif args.pos_encoding == 'absolute':
         from transformer_model_absolute import *
     elif args.pos_encoding == 'relative':
         from transformer_model_relative import *
     st = time.time()
     study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
-    study.optimize(objective, n_trials = 240)
+    study.optimize(objective, n_trials = 250)
     print(study.best_params)
     print(study.best_trial)
     print(study.best_trial.value)
@@ -357,7 +358,7 @@ if __name__ == "__main__":
     fig1 = optuna.visualization.plot_contour(study)
     fig2 = optuna.visualization.plot_optimization_history(study)
     fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/0807/contour.html')
-    fig2.write_html('../results/0807/optimization_history.html') 
-    fig3.write_html('../results/0807/param_importances.html') 
+    fig1.write_html('../results/0807/contour_novel.html')
+    fig2.write_html('../results/0807/optimization_history_novel.html') 
+    fig3.write_html('../results/0807/param_importances_novel.html') 
     # main(args)

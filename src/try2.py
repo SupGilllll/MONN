@@ -2,6 +2,7 @@ from transformer_model import *
 from torchinfo import summary
 from pdbbind_utils import loading_emb
 import numpy as np
+import random
 
 # cuda1 = torch.device('cuda:1')
 # transformer = Transformer(d_encoder = 256, d_decoder= 64, d_model = 512, device = cuda1)
@@ -79,6 +80,47 @@ import numpy as np
 # print(pairwise_mask.equal(z))
 # print(pairwise_mask.equal(n))
 
-data = torch.zeros((1,2))
-print(data.dtype)
+# data = torch.zeros((1,2))
+# print(data.dtype)
 
+def mask_softmax(a, mask, dim=-1):
+    a_max = torch.max(a,dim,keepdim=True)[0]
+    a_exp = torch.exp(a-a_max)
+    print(a_exp.shape)
+    a_exp = a_exp*mask
+    a_softmax = a_exp/(torch.sum(a_exp,dim,keepdim=True)+1e-6)
+    return a_softmax
+
+from torch import linalg as LA
+x = torch.FloatTensor([[[1,0,0],[2,0,0],[3,0,0]], [[1,0,0],[0,3,0],[2,0,0]]])
+mask = torch.FloatTensor([[1,1,0], [1,1,0]])
+# x = torch.rand(2, 2, 2)
+# mask = torch.ones(2, 2)
+print(x.shape, mask.shape)
+norm = LA.norm(x, dim = 2)
+print(norm)
+norm = mask_softmax(norm, mask)
+print(norm.shape)
+print(norm)
+
+print(x.transpose(1,2).shape)
+print(norm.unsqueeze(-1).shape)
+Z = torch.matmul(x.transpose(1,2), norm.unsqueeze(-1)).squeeze(-1)
+print(Z.shape)
+print(Z)
+
+sum = torch.sum(x * norm[:, :, None], dim=1)
+print(sum)
+
+sum1 = torch.sum(x * norm.unsqueeze(-1), dim=1)
+print(sum1.shape)
+print(sum1)
+
+flatten = torch.matmul(torch.unsqueeze(sum1, 2), torch.unsqueeze(sum1, 1))
+print(torch.unsqueeze(sum1, 2).shape)
+print(torch.unsqueeze(sum1, 1).shape)
+print(flatten.shape)
+print(flatten)
+
+flatten = torch.flatten(flatten, start_dim=1)
+print(flatten)

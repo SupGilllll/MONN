@@ -33,10 +33,6 @@ class Transformer(nn.Module):
 
         self._reset_parameters()
 
-        self.d_model = d_model
-        self.nhead = nhead
-
-        self.batch_first = batch_first
         self.compound_embedding = nn.Embedding.from_pretrained(init_atoms)
         self.protein_embedding = nn.Embedding.from_pretrained(init_residues)
 

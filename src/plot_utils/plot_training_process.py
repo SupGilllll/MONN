@@ -1,53 +1,58 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def extract_numbers_from_log_file(file_path):
-    total_loss_list = []
-    affinity_loss_list = []
-    pairwise_loss_list = []
+def extract_numbers_from_log_file(file_path, fold = 1):
     rmse_list = []
     auc_list = []
-
+    training_loss_list = []
+    validation_loss_list = []
+    cnt = 0
+    
     with open(file_path, 'r') as file:
-        for line in file.readlines()[:441]:
-            if "total loss" in line:
-                total_loss = float(line.split("total loss")[1].split()[0])
-                total_loss_list.append(total_loss)
-            
-            if "affinity loss" in line:
-                affinity_loss = float(line.split("affinity loss")[1].split()[0])
-                affinity_loss_list.append(affinity_loss)
-            
-            if "pairwise loss" in line:
-                pairwise_loss = float(line.split("pairwise loss")[1].split()[0])
-                pairwise_loss_list.append(pairwise_loss * 0.1)
+        for line in file.readlines():
+            if "train num:" in line:
+                cnt += 1
+
+            if cnt != fold:
+                continue
+
+            if "training loss total loss" in line:
+                training_loss = float(line.split("training loss total loss")[1].split()[0])
+                training_loss_list.append(training_loss)
+
+            if "valiation loss total loss" in line:
+                validation_loss = float(line.split("valiation loss total loss")[1].split()[0])
+                validation_loss_list.append(validation_loss)
+
+            if "validation loss total loss" in line:
+                validation_loss = float(line.split("validation loss total loss")[1].split()[0])
+                validation_loss_list.append(validation_loss)
             
             if "RMSE" in line and "valid" in line:
                 rmse = float(line.split("RMSE")[1].split()[0])
-                rmse_list.append(rmse * 50)
+                rmse_list.append(rmse * 10)
             
             if "avg pairwise AUC" in line and "valid" in line:
                 auc = float(line.split("avg pairwise AUC")[1].split()[0])
-                auc_list.append(auc * 100)
+                auc_list.append(auc * 10)
 
-    return total_loss_list, affinity_loss_list, pairwise_loss_list, rmse_list, auc_list
+    # return total_loss_list, affinity_loss_list, pairwise_loss_list, rmse_list, auc_list
+    return training_loss_list, validation_loss_list, rmse_list, auc_list
 
-def plot_data(total_loss, affinity_loss, pairwise_loss, rmse, auc):
-    epochs = range(1, len(total_loss) + 1)
+def plot_data(training_loss, validation_loss, rmse, auc):
+    epochs = range(1, len(training_loss[:30]) + 1)
     fig, ax = plt.subplots()
 
     # Plotting total loss
-    ax.plot(epochs, total_loss, label='Total Loss')
+    ax.plot(epochs, training_loss[:30], label='training_loss')
     # Plotting affinity loss
-    ax.plot(epochs, affinity_loss, label='Affinity Loss')
-    # Plotting pairwise loss
-    ax.plot(epochs, pairwise_loss, label='Pairwise Loss')
+    ax.plot(epochs, validation_loss[:30], label='validation_loss')
     # Plotting RMSE
-    ax.plot(epochs, rmse, label='RMSE')
+    ax.plot(epochs, rmse[:30], label='RMSE')
     # Plotting AUC
-    ax.plot(epochs, auc, label='AUC')
+    ax.plot(epochs, auc[:30], label='AUC')
     
-    ax.set_ylim(0, 120)
+    ax.set_ylim(5, 50)
     plt.xlabel('Epoch')
     plt.ylabel('Trend')
     plt.title('Loss Curve')
@@ -56,8 +61,15 @@ def plot_data(total_loss, affinity_loss, pairwise_loss, rmse, auc):
     plt.savefig('plot.png')
 
 
-log_file_path = '../../results/0612/blosum62/KIKD_new_protein_0.3.log'
-total_loss, affinity_loss, pairwise_loss, rmse, auc = extract_numbers_from_log_file(log_file_path)
+# log_file_path = '../../results/0724/transformer_base_seed42/KIKD_new_protein_0.3.log'
+log_file_path = '../../results/0724/transformer_novel/KIKD_new_protein_0.5_1.log'
+# total_loss, affinity_loss, pairwise_loss, rmse, auc = extract_numbers_from_log_file(log_file_path)
+training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 5)
 
-plot_data(total_loss, affinity_loss, pairwise_loss, rmse, auc)
+# print(training_loss)
+# print(validation_loss)
+# print(rmse)
+# print(auc)
+# plot_data(total_loss, affinity_loss, pairwise_loss, rmse, auc)
+plot_data(training_loss, validation_loss, rmse, auc)
 
