@@ -18,8 +18,8 @@ def setup_seed(seed = 42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    # torch.backends.cudnn.benchmark = False
-    # torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 def reg_scores(label, pred):
     label = label.reshape(-1)
@@ -129,6 +129,39 @@ def batch_data_process(data):
     sequence = torch.LongTensor(sequence).cuda()
     
     return vertex_mask, vertex, edge, atom_adj, bond_adj, nbs_mask, seq_mask, sequence
+
+def batch_data_process_transformer_graph(data):
+    vertex, edge, atom_adj, bond_adj, nbs, sequence = data
+    
+    vertex_mask = get_mask(vertex)
+    model_compound_mask = torch.BoolTensor(1 - vertex_mask).cuda()
+    vertex = pack1D(vertex)
+    edge = pack1D(edge)
+    atom_adj = pack2D(atom_adj)
+    bond_adj = pack2D(bond_adj)
+    nbs_mask = pack2D(nbs)
+    
+    #pad proteins and make masks
+    seq_mask = get_mask(sequence)
+    model_protein_mask = torch.BoolTensor(1 - seq_mask).cuda()
+    sequence = pack1D(sequence+1)
+    
+    atom_adj = add_index(atom_adj, np.shape(atom_adj)[1])
+    bond_adj = add_index(bond_adj, np.shape(edge)[1])
+
+    #convert to torch cuda data type
+    vertex_mask = torch.FloatTensor(vertex_mask).cuda()
+    vertex = torch.LongTensor(vertex).cuda()
+    edge = torch.LongTensor(edge).cuda()
+    atom_adj = torch.LongTensor(atom_adj).cuda()
+    bond_adj = torch.LongTensor(bond_adj).cuda()
+    nbs_mask = torch.FloatTensor(nbs_mask).cuda()
+
+    seq_mask = torch.FloatTensor(seq_mask).cuda()
+    sequence = torch.LongTensor(sequence).cuda()
+    
+    # return vertex_mask, vertex, seq_mask, sequence, model_compound_mask, model_protein_mask
+    return vertex, edge, atom_adj, bond_adj, sequence, nbs_mask, model_compound_mask, model_protein_mask
 
 def batch_data_process_transformer(data):
     vertex, sequence = data

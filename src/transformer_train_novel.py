@@ -201,7 +201,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
@@ -321,7 +321,7 @@ def objective(trail):
     args.lr = trail.suggest_categorical('lr', [1e-5, 5e-5] + np.linspace(1e-4, 1e-3, 19, dtype=float).tolist())
     args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 32)
     args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4, 8])
-    args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu', 'tanh'])
+    args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu'])
     args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'RAdam', 'Adagrad', 'SGD'])
     args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_10', 'LinearLR', 'ReduceLROnPlateau', 'none'])
     # args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
@@ -338,6 +338,7 @@ def objective(trail):
 if __name__ == "__main__":
     os.chdir('/data/zhao/MONN/src')
     args = parse_args()
+    # setup_seed()
     if args.embedding == 't33':
         from transformer_model_t33 import *
     elif args.pos_encoding == 'none':
@@ -348,17 +349,17 @@ if __name__ == "__main__":
         from transformer_model_absolute import *
     elif args.pos_encoding == 'relative':
         from transformer_model_relative import *
-    st = time.time()
-    study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
-    study.optimize(objective, n_trials = 250)
-    print(study.best_params)
-    print(study.best_trial)
-    print(study.best_trial.value)
-    print(format((time.time() - st) / 3600.0, ".3f"))
-    fig1 = optuna.visualization.plot_contour(study)
-    fig2 = optuna.visualization.plot_optimization_history(study)
-    fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/0807/contour_novel.html')
-    fig2.write_html('../results/0807/optimization_history_novel.html') 
-    fig3.write_html('../results/0807/param_importances_novel.html') 
-    # main(args)
+    # st = time.time()
+    # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
+    # study.optimize(objective, n_trials = 140)
+    # print(study.best_params)
+    # print(study.best_trial)
+    # print(study.best_trial.value)
+    # print(format((time.time() - st) / 3600.0, ".3f"))
+    # fig1 = optuna.visualization.plot_contour(study)
+    # fig2 = optuna.visualization.plot_optimization_history(study)
+    # fig3 = optuna.visualization.plot_param_importances(study)
+    # fig1.write_html('../results/0807/contour_novel.html')
+    # fig2.write_html('../results/0807/optimization_history_novel.html') 
+    # fig3.write_html('../results/0807/param_importances_novel.html') 
+    main(args)

@@ -22,8 +22,8 @@ from transformer_utils import *
 def train_and_eval(train_data, valid_data, test_data, params):
     measure, setting, clu_thre, embedding, activation, opt, sch, n_rep, epochs, batch_size, lr, num_encoder_layers, \
     num_decoder_layers, d_encoder, d_decoder, d_model, dim_feedforward, nhead = params
-    init_atoms, _, init_residues = loading_emb(measure, 'blosum62')
-    net = Transformer(init_atoms = init_atoms, init_residues = init_residues, 
+    init_atoms, init_bonds, init_residues = loading_emb(measure, 'blosum62')
+    net = Transformer(init_atoms = init_atoms, init_bonds = init_bonds, init_residues = init_residues, 
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
                       nhead = nhead, num_encoder_layers = num_encoder_layers, activation = activation,
                       num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda()  
@@ -50,6 +50,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
     # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
     if sch == 'StepLR_1':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+    elif sch == 'StepLR_5':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.95)
     elif sch == 'StepLR_10':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
     elif sch == 'LinearLR':
@@ -78,20 +80,22 @@ def train_and_eval(train_data, valid_data, test_data, params):
             if i % 20 == 0:
                 print('epoch', epoch, 'batch', i)
 
-            input_vertex, _, _, _, _, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
+            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
                 [train_data[data_idx][shuffle_index[i * batch_size:(i+1)*batch_size]] for data_idx in range(10)]
             actual_batch_size = len(input_vertex)
 
-            inputs = [input_vertex, input_seq]
-            compound, protein, compound_mask, protein_mask = batch_data_process_transformer(inputs)
+            inputs = [input_vertex, input_edge, input_atom_adj,
+                      input_bond_adj, input_num_nbs, input_seq]
+            compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             optimizer.zero_grad()
-            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
-                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
+                                               nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
+                                               tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
 
             loss_aff = criterion1(affinity_pred, affinity_label)
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
@@ -152,18 +156,20 @@ def test(net, test_data, batch_size):
     criterion2 = Masked_BCELoss()
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
-            input_vertex, _, _, _, _, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
+            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
                 [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(10)]
             actual_batch_size = len(input_vertex)
             
-            inputs = [input_vertex, input_seq]
-            compound, protein, compound_mask, protein_mask = batch_data_process_transformer(inputs)
+            inputs = [input_vertex, input_edge, input_atom_adj,
+                      input_bond_adj, input_num_nbs, input_seq]
+            compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
             l_affinity_label = torch.FloatTensor(affinity_label).cuda()
             l_pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             l_pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
-            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, pids = pids, src_key_padding_mask = protein_mask, 
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
+                                               nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
                                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
             
             loss_aff = criterion1(affinity_pred, l_affinity_label)
@@ -201,20 +207,21 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
+    parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
     parser.add_argument('--activation', type = str, default = 'gelu')
     parser.add_argument('--optimizer', type = str, default = 'Adam')
-    parser.add_argument('--scheduler', type = str, default = 'StepLR')
+    parser.add_argument('--scheduler', type = str, default = 'none')
     parser.add_argument('--n_rep', type = int, default = 1)
     parser.add_argument('--epochs', type = int, default = 15)
     parser.add_argument('--batch_size', type = int, default = 32)
     parser.add_argument('--lr', type = float, default = 5.5e-4)
     parser.add_argument('--pos_encoding', type = str, default = 'none')
-    parser.add_argument('--num_layers', type = int, default = 2)
+    parser.add_argument('--encoder_layers', type = int, default = 2)
+    parser.add_argument('--decoder_layers', type = int, default = 4)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
     parser.add_argument('--d_model', type = int, default = 256)
@@ -239,8 +246,8 @@ def main(args):
     epochs = args.epochs
     batch_size = args.batch_size
     lr = args.lr
-    num_encoder_layers = args.num_layers
-    num_decoder_layers = args.num_layers
+    num_encoder_layers = args.encoder_layers
+    num_decoder_layers = args.decoder_layers
     d_encoder = {'blosum62' : 20, 'one-hot' : 20, 't33' : 1280}
     d_decoder = args.d_decoder
     d_model = args.d_model
@@ -319,12 +326,12 @@ def main(args):
 
 def objective(trail):
     args.lr = trail.suggest_categorical('lr', [1e-5, 5e-5] + np.linspace(1e-4, 1e-3, 19, dtype=float).tolist())
-    args.num_layers = trail.suggest_int('num_layers', 1, 2)
     args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 32)
+    args.decoder_layers = trail.suggest_categorical('decoder_layers', [2, 3, 4])
     args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4, 8])
-    args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu'])
-    args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'RAdam', 'Adagrad', 'SGD'])
-    args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_10', 'LinearLR', 'ReduceLROnPlateau', 'none'])
+    args.activation = trail.suggest_categorical('activation_func', ['elu', 'gelu', 'leaky_relu'])
+    args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'SGD', 'RAdam', 'Adagrad'])
+    args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'none', 'StepLR_10', 'ReduceLROnPlateau', 'StepLR_5', 'LinearLR'])
     # args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
     # args.num_layers = trail.suggest_int('num_layers', 1, 2)
     # args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 16)
@@ -343,7 +350,7 @@ if __name__ == "__main__":
     if args.embedding == 't33':
         from transformer_model_t33 import *
     elif args.pos_encoding == 'none':
-        from transformer_model import *
+        from transformer_model_graph import *
     elif args.pos_encoding == 'absolute':
         from transformer_model_absolute import *
     elif args.pos_encoding == 'relative':
@@ -358,7 +365,7 @@ if __name__ == "__main__":
     # fig1 = optuna.visualization.plot_contour(study)
     # fig2 = optuna.visualization.plot_optimization_history(study)
     # fig3 = optuna.visualization.plot_param_importances(study)
-    # fig1.write_html('../results/0807/contour.html')
-    # fig2.write_html('../results/0807/optimization_history.html') 
-    # fig3.write_html('../results/0807/param_importances.html') 
+    # fig1.write_html('../results/0807/contour_graph1.html')
+    # fig2.write_html('../results/0807/optimization_history_graph1.html') 
+    # fig3.write_html('../results/0807/param_importances_graph1.html') 
     main(args)

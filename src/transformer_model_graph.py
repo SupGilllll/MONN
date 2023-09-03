@@ -1,15 +1,16 @@
 import copy
-import math
 from typing import Optional, Any, Union, Callable
 
 import torch
 from torch import Tensor
+from torch import linalg as LA
 import torch.nn.functional as F
 import torch.nn as nn
 
+bond_fdim = 6
 
 class Transformer(nn.Module):
-    def __init__(self, init_atoms, init_residues, d_encoder: int = 512, d_decoder: int = 512, d_model: int = 512, 
+    def __init__(self, init_atoms, init_bonds, init_residues, d_encoder: int = 512, d_decoder: int = 512, d_model: int = 512, 
                  nhead: int = 8, num_encoder_layers: int = 6, num_decoder_layers: int = 6, dim_feedforward: int = 2048, 
                  dropout: float = 0.1, activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
                  layer_norm_eps: float = 1e-5, batch_first: bool = True, norm_first: bool = False,
@@ -17,7 +18,6 @@ class Transformer(nn.Module):
         factory_kwargs = {'device': device, 'dtype': dtype}
         super(Transformer, self).__init__()
 
-        self.pos_encoder = PositionalEncoding(d_model, dropout)
         self.encoder_transform_layer = LinearTransformLayer(d_encoder, d_model, dropout, activation, layer_norm_eps, **factory_kwargs)
         encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout, activation, layer_norm_eps, 
                                                 batch_first, norm_first, **factory_kwargs)
@@ -25,12 +25,15 @@ class Transformer(nn.Module):
         self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
 
         self.decoder_transform_layer = LinearTransformLayer(d_decoder, d_model, dropout, activation, layer_norm_eps, **factory_kwargs)
-        decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, activation, layer_norm_eps, 
-                                                batch_first, norm_first, **factory_kwargs)
-        affinity_output_layer = AffinityOutputLayer(d_model, dropout, activation, **factory_kwargs)
+        # decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, activation, layer_norm_eps, 
+        #                                         batch_first, norm_first, **factory_kwargs)
+        affinity_output_layer = AffinityOutputLayerPlus(d_model, dropout, activation, **factory_kwargs)
+        # affinity_output_layer = AffinityOutputLayer(d_model, dropout, activation, **factory_kwargs)
         pairwise_output_layer = PairwiseOutputLayer(d_model, dropout, activation, **factory_kwargs)
         decoder_norm = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-        self.decoder = TransformerDecoder(decoder_layer, affinity_output_layer, 
+        # self.decoder = TransformerDecoder(d_model, init_bonds, decoder_layer, affinity_output_layer, 
+        #                                   pairwise_output_layer, num_decoder_layers, decoder_norm)
+        self.decoder = TransformerDecoder(d_model, init_bonds, affinity_output_layer,
                                           pairwise_output_layer, num_decoder_layers, decoder_norm)
 
         self._reset_parameters()
@@ -38,17 +41,18 @@ class Transformer(nn.Module):
         self.compound_embedding = nn.Embedding.from_pretrained(init_atoms)
         self.protein_embedding = nn.Embedding.from_pretrained(init_residues)
 
-    def forward(self, src: Tensor, tgt: Tensor, pids = None, src_mask: Optional[Tensor] = None, tgt_mask: Optional[Tensor] = None,
-                memory_mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None,
-                tgt_key_padding_mask: Optional[Tensor] = None, memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(self, src: Tensor, tgt: Tensor, edge: Tensor, atom_adj: Tensor, bond_adj: Tensor, nbs_mask: Tensor, pids = None, 
+                src_mask: Optional[Tensor] = None, tgt_mask: Optional[Tensor] = None, memory_mask: Optional[Tensor] = None,
+                src_key_padding_mask: Optional[Tensor] = None, tgt_key_padding_mask: Optional[Tensor] = None,
+                memory_key_padding_mask: Optional[Tensor] = None) -> Tensor:
               
         embed_src = self.protein_embedding_block(src)
-        pos_src = self.pos_encoder(embed_src, src_key_padding_mask)
-        memory = self.encoder(pos_src, mask=src_mask,
+        memory = self.encoder(embed_src, mask=src_mask,
                               src_key_padding_mask=src_key_padding_mask)
         
         embed_tgt = self.compound_embedding_block(tgt)
-        output = self.decoder(embed_tgt, memory, tgt_mask=tgt_mask, memory_mask=memory_mask,
+        output = self.decoder(tgt = embed_tgt, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj, nbs_mask = nbs_mask,
+                              memory = memory, tgt_mask=tgt_mask, memory_mask=memory_mask,
                               tgt_key_padding_mask=tgt_key_padding_mask,
                               memory_key_padding_mask=memory_key_padding_mask)
         return output
@@ -77,33 +81,6 @@ class Transformer(nn.Module):
         y2 = self.decoder_transform_layer(y1)
         return y2
 
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 2050):
-        super(PositionalEncoding, self).__init__()
-        self.d_model = d_model
-        self.dropout = nn.Dropout(p=dropout)
-
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x: Tensor, p_bool_mask: Tensor) -> Tensor:
-        """
-        Arguments:
-            x: Tensor, shape ``[seq_len, batch_size, embedding_dim]``
-        """
-        batch_size = x.size(0)
-        seq_len = x.size(1)
-        x = x.transpose(0,1)
-        x = x + self.pe[:x.size(0)]
-        x = self.dropout(x)
-        x = x.transpose(0,1)
-        x = x * (1 - p_bool_mask.float()).unsqueeze(-1).expand(batch_size, seq_len, self.d_model)
-        return x
-
 class TransformerEncoder(nn.Module):
     __constants__ = ['norm']
 
@@ -128,31 +105,59 @@ class TransformerEncoder(nn.Module):
 class TransformerDecoder(nn.Module):
     __constants__ = ['norm']
 
-    def __init__(self, decoder_layer, affinity_output_layer, pairwise_output_layer, num_layers, norm=None):
+    def __init__(self, d_model, init_bonds, affinity_output_layer, pairwise_output_layer, num_layers, norm=None):
         super(TransformerDecoder, self).__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
+        self.label_U2 = nn.ModuleList([nn.Linear(d_model + bond_fdim, d_model) for i in range(num_layers)]) #assume no edge feature transformation
+        self.label_U1 = nn.ModuleList([nn.Linear(2 * d_model, d_model) for i in range(num_layers)])
+        self.bond_embedding = nn.Embedding.from_pretrained(init_bonds)
+
+        # self.layers = _get_clones(decoder_layer, num_layers)
         self.affinity_output_layer = affinity_output_layer
         self.pairwise_output_layer = pairwise_output_layer
+        self.d_model = d_model
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, tgt: Tensor, memory: Tensor, tgt_mask: Optional[Tensor] = None,
-                memory_mask: Optional[Tensor] = None, tgt_key_padding_mask: Optional[Tensor] = None,
-                memory_key_padding_mask: Optional[Tensor] = None):
-        output = tgt
-        for mod in self.layers:
-            output = mod(output, memory, tgt_mask=tgt_mask,
-                         memory_mask=memory_mask,
-                         tgt_key_padding_mask=tgt_key_padding_mask,
-                         memory_key_padding_mask=memory_key_padding_mask)
+    def forward(self, tgt: Tensor, edge: Tensor, atom_adj: Tensor, bond_adj: Tensor, nbs_mask: Tensor,
+                memory: Tensor, tgt_mask: Optional[Tensor] = None, memory_mask: Optional[Tensor] = None,
+                tgt_key_padding_mask: Optional[Tensor] = None, memory_key_padding_mask: Optional[Tensor] = None):
+        batch_size = tgt.size(0)
+        edge_initial = self.bond_embedding(edge)
+        vertex_mask = 1 - tgt_key_padding_mask.float()
+        vertex_feature = tgt
 
-        if self.norm is not None:
-            output = self.norm(output)
+        for GWM_iter in range(self.num_layers):
+            vertex_feature = self.graph_unit(batch_size, vertex_mask, vertex_feature, edge_initial, atom_adj, bond_adj, nbs_mask, GWM_iter)  
 
-        affinity_output = self.affinity_output_layer(output)
-        pairwise_output = self.pairwise_output_layer(output, memory, tgt_key_padding_mask, memory_key_padding_mask)
+        # if self.norm is not None:
+        #     output = self.norm(output)
+        # vertex_feature = self.norm(vertex_feature)
+
+        affinity_output = self.affinity_output_layer(memory, vertex_feature, memory_key_padding_mask, tgt_key_padding_mask)
+        # affinity_output = self.affinity_output_layer(vertex_feature)
+        pairwise_output = self.pairwise_output_layer(vertex_feature, memory, tgt_key_padding_mask, memory_key_padding_mask)
 
         return affinity_output, pairwise_output
+    
+    def graph_unit(self, batch_size, vertex_mask, vertex_features, edge_initial, atom_adj, bond_adj, nbs_mask, GNN_iter):
+        n_vertex = vertex_mask.size(1)
+        n_nbs = nbs_mask.size(2)
+        
+        vertex_mask = vertex_mask.view(batch_size,n_vertex,1)
+        nbs_mask = nbs_mask.view(batch_size,n_vertex,n_nbs,1)
+        
+        vertex_nei = torch.index_select(vertex_features.view(-1, self.d_model), 0, atom_adj).view(batch_size, n_vertex, n_nbs, self.d_model)
+        edge_nei = torch.index_select(edge_initial.view(-1, bond_fdim), 0, bond_adj).view(batch_size, n_vertex, n_nbs, bond_fdim)
+        
+        # Weisfeiler Lehman relabelling
+        l_nei = torch.cat((vertex_nei, edge_nei), -1)
+        nei_label = F.leaky_relu(self.label_U2[GNN_iter](l_nei), 0.1)
+        nei_label = torch.sum(nei_label*nbs_mask, dim=-2)
+        new_label = torch.cat((vertex_features, nei_label), 2)
+        new_label = self.label_U1[GNN_iter](new_label)
+        vertex_features = F.leaky_relu(new_label, 0.1)
+        
+        return vertex_features
 
 class PairwiseOutputLayer(nn.Module):
     def __init__(self, d_model: int, dropout: float = 0.1, activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
@@ -163,7 +168,8 @@ class PairwiseOutputLayer(nn.Module):
         # Implementation of Feedforward model
         self.linear_compound = nn.Linear(d_model, d_model, **factory_kwargs)
         self.linear_protein = nn.Linear(d_model, d_model, **factory_kwargs)
-        self.dropout = nn.Dropout(dropout)
+        # self.dropout1 = nn.Dropout(dropout)
+        # self.dropout2 = nn.Dropout(dropout)
 
         # Legacy string support for activation function.
         if isinstance(activation, str):
@@ -173,8 +179,8 @@ class PairwiseOutputLayer(nn.Module):
 
     def forward(self, x: Tensor, y: Tensor, c_bool_mask: Tensor, p_bool_mask: Tensor) -> Tensor:
         # need dropout here?
-        # x = self.dropout(self.activation(self.linear_compound(x)))
-        # y = self.dropout(self.activation(self.linear_protein(y)))
+        # x = self.dropout1(self.activation(self.linear_compound(x)))
+        # y = self.dropout2(self.activation(self.linear_protein(y)))
         x = self.activation(self.linear_compound(x))
         y = self.activation(self.linear_protein(y))
         pairwise_pred = torch.sigmoid(torch.matmul(x, y.transpose(1,2)))
@@ -182,6 +188,50 @@ class PairwiseOutputLayer(nn.Module):
         pairwise_pred = pairwise_pred * pairwise_mask
 
         return pairwise_pred
+    
+class AffinityOutputLayerPlus(nn.Module):
+    def __init__(self, d_model: int, dropout: float = 0.1, activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
+                 device=None, dtype=None) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
+        super(AffinityOutputLayerPlus, self).__init__()
+
+        # Implementation of Feedforward model
+        self.linear_protein = nn.Linear(d_model, d_model, **factory_kwargs)
+        self.linear_compound = nn.Linear(d_model, d_model, **factory_kwargs)
+        self.final_layer = nn.Linear(d_model * d_model, 1, **factory_kwargs)
+        # self.dropout1 = nn.Dropout(dropout)
+        # self.dropout2 = nn.Dropout(dropout)
+        # self.dropout3 = nn.Dropout(dropout)
+
+        # Legacy string support for activation function.
+        if isinstance(activation, str):
+            self.activation = _get_activation_fn(activation)
+        else:
+            self.activation = activation
+
+    def mask_softmax(self, a, bool_mask, dim=-1):
+        mask = 1 - bool_mask.float()
+        a_max = torch.max(a,dim,keepdim=True)[0]
+        a_exp = torch.exp(a-a_max)
+        a_exp = a_exp*mask
+        a_softmax = a_exp/(torch.sum(a_exp,dim,keepdim=True)+1e-6)
+        return a_softmax
+
+    def forward(self, prot: Tensor, comp: Tensor, p_bool_mask: Tensor, c_bool_mask: Tensor) -> Tensor:
+        # prot_f = self.dropout1(self.activation(self.linear_protein(prot)))
+        # comp_f = self.dropout2(self.activation(self.linear_compound(comp)))
+        prot_f = self.activation(self.linear_protein(prot))
+        comp_f = self.activation(self.linear_compound(comp))
+        prot_norm = LA.norm(prot_f, dim = 2)
+        comp_norm = LA.norm(comp_f, dim = 2)
+        prot_norm = self.mask_softmax(prot_norm, p_bool_mask)
+        comp_norm = self.mask_softmax(comp_norm, c_bool_mask)
+        prot_sum = torch.sum(prot_f * prot_norm.unsqueeze(-1), dim = 1)
+        comp_sum = torch.sum(comp_f * comp_norm.unsqueeze(-1), dim = 1)
+        flatten = self.activation(torch.flatten(torch.matmul(torch.unsqueeze(comp_sum, 2), torch.unsqueeze(prot_sum, 1)), start_dim=1))
+        # flatten = self.dropout3(self.activation(torch.flatten(torch.matmul(torch.unsqueeze(comp_sum, 2), torch.unsqueeze(prot_sum, 1)), start_dim=1)))
+        affinity_pred = self.final_layer(flatten)
+        return affinity_pred
 
 class AffinityOutputLayer(nn.Module):
     def __init__(self, d_input: int, dropout: float = 0.1,

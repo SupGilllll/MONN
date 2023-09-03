@@ -83,44 +83,53 @@ import random
 # data = torch.zeros((1,2))
 # print(data.dtype)
 
-def mask_softmax(a, mask, dim=-1):
-    a_max = torch.max(a,dim,keepdim=True)[0]
-    a_exp = torch.exp(a-a_max)
-    print(a_exp.shape)
-    a_exp = a_exp*mask
-    a_softmax = a_exp/(torch.sum(a_exp,dim,keepdim=True)+1e-6)
-    return a_softmax
+# def mask_softmax(a, mask, dim=-1):
+#     a_max = torch.max(a,dim,keepdim=True)[0]
+#     a_exp = torch.exp(a-a_max)
+#     print(a_exp.shape)
+#     a_exp = a_exp*mask
+#     a_softmax = a_exp/(torch.sum(a_exp,dim,keepdim=True)+1e-6)
+#     return a_softmax
 
-from torch import linalg as LA
-x = torch.FloatTensor([[[1,0,0],[2,0,0],[3,0,0]], [[1,0,0],[0,3,0],[2,0,0]]])
-mask = torch.FloatTensor([[1,1,0], [1,1,0]])
-# x = torch.rand(2, 2, 2)
-# mask = torch.ones(2, 2)
-print(x.shape, mask.shape)
-norm = LA.norm(x, dim = 2)
-print(norm)
-norm = mask_softmax(norm, mask)
-print(norm.shape)
-print(norm)
+# from torch import linalg as LA
+# x = torch.FloatTensor([[[1,0,0],[2,0,0],[3,0,0]], [[1,0,0],[0,3,0],[2,0,0]]])
+# mask = torch.FloatTensor([[1,1,0], [1,1,0]])
+# # x = torch.rand(2, 2, 2)
+# # mask = torch.ones(2, 2)
+# print(x.shape, mask.shape)
+# norm = LA.norm(x, dim = 2)
+# print(norm)
+# norm = mask_softmax(norm, mask)
+# print(norm.shape)
+# print(norm)
 
-print(x.transpose(1,2).shape)
-print(norm.unsqueeze(-1).shape)
-Z = torch.matmul(x.transpose(1,2), norm.unsqueeze(-1)).squeeze(-1)
-print(Z.shape)
-print(Z)
+# print(x.transpose(1,2).shape)
+# print(norm.unsqueeze(-1).shape)
+# Z = torch.matmul(x.transpose(1,2), norm.unsqueeze(-1)).squeeze(-1)
+# print(Z.shape)
+# print(Z)
 
-sum = torch.sum(x * norm[:, :, None], dim=1)
-print(sum)
+# sum = torch.sum(x * norm[:, :, None], dim=1)
+# print(sum)
 
-sum1 = torch.sum(x * norm.unsqueeze(-1), dim=1)
-print(sum1.shape)
-print(sum1)
+# sum1 = torch.sum(x * norm.unsqueeze(-1), dim=1)
+# print(sum1.shape)
+# print(sum1)
 
-flatten = torch.matmul(torch.unsqueeze(sum1, 2), torch.unsqueeze(sum1, 1))
-print(torch.unsqueeze(sum1, 2).shape)
-print(torch.unsqueeze(sum1, 1).shape)
-print(flatten.shape)
-print(flatten)
+# flatten = torch.matmul(torch.unsqueeze(sum1, 2), torch.unsqueeze(sum1, 1))
+# print(torch.unsqueeze(sum1, 2).shape)
+# print(torch.unsqueeze(sum1, 1).shape)
+# print(flatten.shape)
+# print(flatten)
 
-flatten = torch.flatten(flatten, start_dim=1)
-print(flatten)
+# flatten = torch.flatten(flatten, start_dim=1)
+# print(flatten)
+
+x1 = torch.FloatTensor([[[1,2],[1,2],[1,2]], [[1,2],[1,2],[1,2]]])
+mask = torch.BoolTensor([[False,False,True], [False,False,True]])
+batch_size = x1.size(0)
+seq_len = x1.size(1)
+p_mask = (1 - mask.float()).unsqueeze(-1).expand(batch_size, seq_len, 2)
+print(x1)
+x1 = x1 * p_mask
+print(x1)

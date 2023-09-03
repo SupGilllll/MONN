@@ -159,16 +159,16 @@ def test(net, test_data, batch_size):
 
 if __name__ == "__main__":
     torch.cuda.set_device(0)
-    # os.chdir('/data/zhao/MONN/src')
-    # measure = 'KIKD'  # IC50 or KIKD
-    # setting = 'new_protein'   # new_compound, new_protein or new_new
-    # clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
-    # embedding = 'blosum62'
+    os.chdir('/data/zhao/MONN/src')
+    measure = 'KIKD'  # IC50 or KIKD
+    setting = 'new_protein'   # new_compound, new_protein or new_new
+    clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6
+    embedding = 'blosum62'
 
-    measure = sys.argv[1]  # IC50 or KIKD
-    setting = sys.argv[2]   # new_compound, new_protein or new_new
-    clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
-    embedding = sys.argv[4]
+    # measure = sys.argv[1]  # IC50 or KIKD
+    # setting = sys.argv[2]   # new_compound, new_protein or new_new
+    # clu_thre = float(sys.argv[3])  # 0.3, 0.4, 0.5 or 0.6
+    # embedding = sys.argv[4]
     n_epoch = 30
     n_rep = 1
 
