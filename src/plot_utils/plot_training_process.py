@@ -28,13 +28,13 @@ def extract_numbers_from_log_file(file_path, fold = 1):
                 validation_loss = float(line.split("validation loss total loss")[1].split()[0])
                 validation_loss_list.append(validation_loss)
             
-            if "RMSE" in line and "valid" in line:
-                rmse = float(line.split("RMSE")[1].split()[0])
-                rmse_list.append(rmse * 10)
+            # if "RMSE" in line and "valid" in line:
+            #     rmse = float(line.split("RMSE")[1].split()[0])
+            #     rmse_list.append(rmse * 5 + 70)
             
-            if "avg pairwise AUC" in line and "valid" in line:
-                auc = float(line.split("avg pairwise AUC")[1].split()[0])
-                auc_list.append(auc * 10)
+            # if "avg pairwise AUC" in line and "valid" in line:
+            #     auc = float(line.split("avg pairwise AUC")[1].split()[0])
+            #     auc_list.append(auc * 5 + 70)
 
     # return total_loss_list, affinity_loss_list, pairwise_loss_list, rmse_list, auc_list
     return training_loss_list, validation_loss_list, rmse_list, auc_list
@@ -44,27 +44,27 @@ def plot_data(training_loss, validation_loss, rmse, auc):
     fig, ax = plt.subplots()
 
     # Plotting total loss
-    ax.plot(epochs, training_loss[:30], label='training_loss')
+    ax.plot(epochs, training_loss[:30], label='Training_loss')
     # Plotting affinity loss
-    ax.plot(epochs, validation_loss[:30], label='validation_loss')
+    ax.plot(epochs, validation_loss[:30], label='Validation_loss')
     # Plotting RMSE
-    ax.plot(epochs, rmse[:30], label='RMSE')
-    # Plotting AUC
-    ax.plot(epochs, auc[:30], label='AUC')
+    # ax.plot(epochs, rmse[:30], label='RMSE')
+    # # Plotting AUC
+    # ax.plot(epochs, auc[:30], label='AUC')
     
-    ax.set_ylim(5, 50)
+    ax.set_ylim(5, 30)
     plt.xlabel('Epoch')
-    plt.ylabel('Trend')
+    plt.ylabel('Loss')
     plt.title('Loss Curve')
-    plt.legend()
+    plt.legend(fontsize=14)
     plt.xticks(np.arange(min(epochs), max(epochs) + 1, 5))
     plt.savefig('plot.png')
 
 
 # log_file_path = '../../results/0724/transformer_base_seed42/KIKD_new_protein_0.3.log'
-log_file_path = '../../results/0724/transformer_novel/KIKD_new_protein_0.5_1.log'
+log_file_path = '../../results/0807/transformer_graph/KIKD_new_protein_0.4.log'
 # total_loss, affinity_loss, pairwise_loss, rmse, auc = extract_numbers_from_log_file(log_file_path)
-training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 5)
+training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 4)
 
 # print(training_loss)
 # print(validation_loss)

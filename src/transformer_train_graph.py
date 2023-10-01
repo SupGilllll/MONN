@@ -226,7 +226,7 @@ def parse_args():
     parser.add_argument('--d_decoder', type = int, default = 82)
     parser.add_argument('--d_model', type = int, default = 256)
     parser.add_argument('--dim_feedforward', type = int, default = 512)
-    parser.add_argument('--nhead', type = int, default = 4)
+    parser.add_argument('--nhead', type = int, default = 1)
 
     args = parser.parse_args()
     return args
