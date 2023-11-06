@@ -3,14 +3,14 @@ import numpy as np
 import matplotlib
 
 # Data
-# x = ['0.3', '0.4', '0.5']
-# y1 = [0.851, 0.844, 0.844]
-# y2 = [0.830, 0.829, 0.830]
-# y3 = [0.850, 0.851, 0.844]
-x = ['0.4']
-y1 = [0.844]
-y2 = [0.829]
-y3 = [0.851]
+x = ['0.3', '0.4', '0.5']
+y1 = [0.811, 0.808, 0.791]
+y2 = [0.819, 0.817, 0.804]
+y3 = [0.834, 0.830, 0.819]
+# x = ['0.4']
+# y1 = [0.844]
+# y2 = [0.829]
+# y3 = [0.851]
 
 cmap = matplotlib.colormaps.get_cmap('gist_earth')
 colors1 = [cmap(0.25)]
@@ -37,7 +37,7 @@ ax.bar(index + bar_width, y3, bar_width, label='Transformer backbone + graph net
 # Set labels, title, and legend
 ax.set_xlabel('Threshold')
 ax.set_ylabel('AUC')
-ax.set_title('AUC under new-protein setting (KIKD)')
+ax.set_title('AUC under both-new setting (KIKD)')
 ax.set_xticks(index)
 ax.set_xticklabels(x_numeric)
 ax.set_ylim(0.75, 0.9)

@@ -1,6 +1,7 @@
 create_dataset/pdbbind_files
 create_dataset/pdbbind_index
 create_dataset/pdb_files
+create_dataset/dssp_files
 create_dataset/plip*
 create_dataset/Components-pub.sdf
 create_dataset/uniprot*

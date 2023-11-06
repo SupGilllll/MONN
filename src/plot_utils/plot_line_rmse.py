@@ -4,9 +4,9 @@ import matplotlib
 
 # Data
 x = ['0.3', '0.4', '0.5']
-y1 = [1.676, 1.706, 1.720]
-y2 = [1.696, 1.705, 1.761]
-y3 = [1.669, 1.728, 1.735]
+y1 = [1.768, 1.777, 1.790]
+y2 = [1.774, 1.835, 1.826]
+y3 = [1.819, 1.820, 1.861]
 # x = ['0.4']
 # y1 = [1.706]
 # y2 = [1.705]
@@ -37,10 +37,10 @@ ax.plot(x, y3,'xg-', label='Transformer backbone + graph network')
 # Set labels, title, and legend
 ax.set_xlabel('Threshold')
 ax.set_ylabel('RMSE')
-ax.set_title('RMSE under new-protein setting (KIKD)')
+ax.set_title('RMSE under both-new setting (KIKD)')
 ax.set_xticks(index)
 ax.set_xticklabels(x_numeric)
-ax.set_ylim(1.65, 1.8)
+ax.set_ylim(1.75, 1.9)
 ax.legend(fontsize=12)
 
 # Show the plot
