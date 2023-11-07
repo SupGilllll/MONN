@@ -12,10 +12,12 @@
 # print(len(seq))
 
 import pickle
-# with open('./create_dataset/out4_interaction_dict', 'rb') as f:
-#     data = pickle.load(f)
-with open('/data/zhao/MONN/preprocessing/surface_area_dict', 'rb') as f:
-    data = pickle.load(f)
+with open('./create_dataset/out4_interaction_dict', 'rb') as f:
+    data1 = pickle.load(f)
+# with open('/data/zhao/MONN/preprocessing/surface_area_dict', 'rb') as f:
+#     data1 = pickle.load(f)
+with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
+    data2 = pickle.load(f)
 print("load finish")
 
 # import os

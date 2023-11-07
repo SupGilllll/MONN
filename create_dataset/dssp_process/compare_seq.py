@@ -16,7 +16,7 @@ def process_dssp(pid):
     for i in range(p + 1, len(lines)):
         str = lines[i].strip().split()
         aa = lines[i][13]
-        if aa == "!" or aa == "*" or aa == '0' or aa == 'X':
+        if aa == "!" or aa == "*" or aa == 'X':
             continue
         if aa.islower():
             aa = 'C'
