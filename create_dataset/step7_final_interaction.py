@@ -121,6 +121,9 @@ def get_interact_in_uniprot_seq(pdb_to_uniprot, uniprot_seq, seq_dict, residue_i
 		sequence, idx_list = seq_dict[chain]       # pdb seuqnce, idx of chain
 		if idx_list.count(idx) != 1:             # some positions in pdb sequence may have the same idx
 			print('idx_list.count(idx) != 1')
+		#
+		# catch the possible error since the idx may not in idx_list
+		#
 		seq_pos = idx_list.index(idx)   # position along pdb sequence
 		if seq_pos >= len(pdb_to_uniprot[chain]):
 			continue

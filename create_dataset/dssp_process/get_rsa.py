@@ -1,3 +1,4 @@
+# generate surface_dict
 import pickle
 import os
 os.chdir('/data/zhao/MONN/create_dataset')
@@ -10,20 +11,11 @@ maxASA = {'A' : 113.0, 'R' : 241.0, 'N' : 158.0, 'D' : 151.0,
 
 with open('./out4_interaction_dict', 'rb') as f:
     int_info = pickle.load(f)
-
-def get_pdbid_to_uniprot():
-    pdbid_to_uniprot = {}
-    with open('./out2_pdbbind_all_datafile.tsv', 'r') as f:
-        for line in f.readlines():
-            pdbid, uniprotid, _, _, _, _, _ = line.strip().split('\t')
-            pdbid_to_uniprot[pdbid] = uniprotid
-    print('pdbid_to_uniprot',len(pdbid_to_uniprot))
-    return pdbid_to_uniprot
-pdbid_to_uniprot = get_pdbid_to_uniprot()
+with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
+    data2 = pickle.load(f)
 
 def parse_dssp(sample_id):
     pid = sample_id.split('_')[0]
-    uid = pdbid_to_uniprot[pid]
     sample = int_info[sample_id]['sequence']
     with open(f'./dssp_files/{pid}.dssp', "r") as f:
         lines = f.readlines()
@@ -38,30 +30,39 @@ def parse_dssp(sample_id):
             aa = 'C'
         chain = lines[i][11]
         try:
-            idx = int(lines[i][7:11].strip())
+            idx = int(lines[i][6:11].strip())
         except:
             continue
         if chain not in sample or idx not in sample[chain][1]:
             continue
         acc = float(lines[i][35:39].strip())
         rsa = acc / maxASA[aa]
-        print(rsa)
+        # print(rsa)
         if rsa >= 0.25:
-            if uid not in ordered_set:
-                ordered_set[uid] = dict()
-            if chain not in ordered_set[uid]:
-                ordered_set[uid][chain] = set()
-            ordered_set[uid][chain].add(idx)
+            if sample_id not in surface_dict:
+                surface_dict[sample_id] = dict()
+                surface_dict[sample_id]['protein'] = int_info[sample_id]['sequence']
+                surface_dict[sample_id]['surface'] = dict()
+            if chain not in surface_dict[sample_id]['surface']:
+                surface_dict[sample_id]['surface'][chain] = ['', []]
+            surface_dict[sample_id]['surface'][chain][0] += aa
+            surface_dict[sample_id]['surface'][chain][1].append(idx)
 
-ordered_set = {}
-i = 0
-for sample_id in list(int_info.keys())[:1]:
+surface_dict = {}
+i = 1
+for sample_id in int_info.keys():
     if i % 100 == 0:
         print(f"------------process {i} samples------------")
     parse_dssp(sample_id)
     i += 1
 
-for uid, seq in ordered_set.items():
-    for chain, idx_list in ordered_set[uid].items():
-        ordered_set[uid][chain] = sorted(ordered_set[uid][chain])
+for sample_id in surface_dict.keys():
+    for chain in surface_dict[sample_id]['surface'].keys():
+        surface_dict[sample_id]['surface'][chain] = (surface_dict[sample_id]['surface'][chain][0], 
+                                                     surface_dict[sample_id]['surface'][chain][1])
+
+with open('/data/zhao/MONN/create_dataset/out3_surface_dict', 'wb') as f:
+    pickle.dump(surface_dict, f)
+# parse_dssp('1uys_H1L')
+
 print("------------finish processing!------------")
