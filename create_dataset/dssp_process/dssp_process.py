@@ -23,7 +23,7 @@ def process_dssp(dssp_file):
         p += 1
     for i in range(p + 1, len(lines)):
         aa = lines[i][13]
-        if aa == "!" or aa == "*":
+        if aa == "!" or aa == "*" or aa == '0':
             continue
         seq += aa
         SS = lines[i][16]
