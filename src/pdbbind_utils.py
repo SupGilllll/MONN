@@ -164,9 +164,10 @@ def data_from_index(data_pack, idx_list):
 	aff_label = data_pack[6][idx_list].astype(float).reshape(-1,1)
 	#cid, pid = [data_pack[i][idx_list] for i in range(7,9)]
 	pid = data_pack[8][idx_list]
+	pdbid = data_pack[11][idx_list]
 	pairwise_mask = data_pack[9][idx_list].astype(float).reshape(-1,1)
 	pairwise_label = data_pack[10][idx_list]
-	return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label]
+	return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label, pdbid]
 
 
 def split_train_test_clusters(measure, clu_thre, n_fold):

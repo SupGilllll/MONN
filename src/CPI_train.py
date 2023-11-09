@@ -123,8 +123,8 @@ def test(net, test_data, batch_size):
     pairwise_auc_list = []
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
-            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, aff_label, pairwise_mask, pairwise_label = \
-                [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(10)]
+            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, aff_label, pairwise_mask, pairwise_label, pdbids = \
+                [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(11)]
             
             inputs = [input_vertex, input_edge, input_atom_adj,
                     input_bond_adj, input_num_nbs, input_seq]
@@ -138,6 +138,13 @@ def test(net, test_data, batch_size):
                     pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
                     pairwise_label_i = pairwise_label[j].reshape(-1)
                     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
+                    # pocket_area_list = pocket_area_dict[pdbids[j]]['pocket_in_uniprot_seq']
+                    # pairwise_pred_i = pairwise_pred[j, :num_vertex, pocket_area_list].cpu().detach().numpy().reshape(-1)
+                    # pairwise_label_i = pairwise_label[j][:, pocket_area_list].reshape(-1)
+                    # try:
+                    #     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
+                    # except ValueError:
+                    #     pass
                     # pairwise_pred_i = pairwise_pred[j, :num_vertex, surface_area_dict[pids[j]]].cpu().detach().numpy().reshape(-1)
                     # pairwise_label_i = pairwise_label[j][:, surface_area_dict[pids[j]]].reshape(-1)
                     # try:
@@ -158,7 +165,7 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
     os.chdir('/data/zhao/MONN/src')
     # measure = 'KIKD'  # IC50 or KIKD
     # setting = 'new_protein'   # new_compound, new_protein or new_new
@@ -197,8 +204,10 @@ if __name__ == "__main__":
     #params = sys.argv[4].split(',')
     #params = map(int, params)
 
-    with open('../preprocessing/surface_area_dict', 'rb') as f:
-        surface_area_dict = pickle.load(f)
+    # with open('../preprocessing/surface_area_dict', 'rb') as f:
+    #     surface_area_dict = pickle.load(f)
+    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+        pocket_area_dict = pickle.load(f)
     # print evaluation scheme
     print('Dataset: PDBbind v2021 with measurement', measure)
     print('Experiment setting', setting)

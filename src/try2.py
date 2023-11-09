@@ -125,11 +125,20 @@ import random
 # flatten = torch.flatten(flatten, start_dim=1)
 # print(flatten)
 
-x1 = torch.FloatTensor([[[1,2],[1,2],[1,2]], [[1,2],[1,2],[1,2]]])
-mask = torch.BoolTensor([[False,False,True], [False,False,True]])
-batch_size = x1.size(0)
-seq_len = x1.size(1)
-p_mask = (1 - mask.float()).unsqueeze(-1).expand(batch_size, seq_len, 2)
-print(x1)
-x1 = x1 * p_mask
-print(x1)
+# x1 = torch.FloatTensor([[[1,2],[1,2],[1,2]], [[1,2],[1,2],[1,2]]])
+# mask = torch.BoolTensor([[False,False,True], [False,False,True]])
+# batch_size = x1.size(0)
+# seq_len = x1.size(1)
+# p_mask = (1 - mask.float()).unsqueeze(-1).expand(batch_size, seq_len, 2)
+# print(x1)
+# x1 = x1 * p_mask
+# print(x1)
+
+# x1 = torch.Tensor([[1,2,3],[2,1,3],[3,1,3]])
+# idx_list = [0,2]
+# x2 = x1[:, idx_list]
+# print(x1)
+# print(x2)
+
+print(f'ashcio\
+aajiocaa')

@@ -310,7 +310,7 @@ if __name__ == "__main__":
                  np.array(nbs_mat_list, dtype = object), np.array(seq_inputs, dtype = object),
                  np.array(valid_value_list, dtype = object), np.array(valid_cid_list, dtype = object), 
                  np.array(valid_pid_list, dtype = object), np.array(valid_pairwise_mask_list, dtype = object), 
-                 np.array(valid_pairwise_mat_list, dtype = object)]
+                 np.array(valid_pairwise_mat_list, dtype = object), np.array(wlnn_train_list, dtype = object)]
     
     # save data
     with open('../preprocessing/pdbbind_all_combined_input_'+MEASURE, 'wb') as f:
