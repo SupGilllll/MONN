@@ -140,5 +140,10 @@ import random
 # print(x1)
 # print(x2)
 
-print(f'ashcio\
-aajiocaa')
+# print(f'ashcio\aajiocaa')
+
+pred = torch.Tensor([[[0.23,0.92,0.007,0.5], [0.23,0.92,0.007,0.5]]])
+target = torch.Tensor([[[0, 1, 1, 1], [0, 1, 1, 1]]])
+criterion = torch.nn.BCELoss(reduction = 'none')
+loss = criterion(pred, target)
+print(loss)

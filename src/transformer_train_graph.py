@@ -99,7 +99,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
             loss_aff = criterion1(affinity_pred, affinity_label)
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
-            loss = loss_aff + 0.1 * loss_pairwise
+            # loss = loss_aff + 0.1 * loss_pairwise
+            loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -174,7 +175,8 @@ def test(net, test_data, batch_size):
             
             loss_aff = criterion1(affinity_pred, l_affinity_label)
             loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
-            loss = loss_aff + 0.1 * loss_pairwise
+            # loss = loss_aff + 0.1 * loss_pairwise
+            loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -216,11 +218,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
     parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
-    parser.add_argument('--setting', type = str, default = 'new_protein')
+    parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.3)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
-    parser.add_argument('--activation', type = str, default = 'gelu')
-    parser.add_argument('--optimizer', type = str, default = 'Adam')
+    parser.add_argument('--activation', type = str, default = 'elu')
+    parser.add_argument('--optimizer', type = str, default = 'RAdam')
     parser.add_argument('--scheduler', type = str, default = 'none')
     parser.add_argument('--n_rep', type = int, default = 1)
     parser.add_argument('--epochs', type = int, default = 15)
@@ -234,6 +236,7 @@ def parse_args():
     parser.add_argument('--d_model', type = int, default = 256)
     parser.add_argument('--dim_feedforward', type = int, default = 512)
     parser.add_argument('--nhead', type = int, default = 1)
+    parser.add_argument('--loss_weight', type = float, default = 0.9)
 
     args = parser.parse_args()
     return args
@@ -261,6 +264,8 @@ def main(args):
     # dim_feedforward = args.dim_feedforward
     dim_feedforward = 2 * d_model
     nhead = args.nhead
+    global loss_weight 
+    loss_weight = args.loss_weight
     if setting == 'new_compound' or setting == 'new_protein':
         n_fold = 5
     elif setting == 'new_new':
