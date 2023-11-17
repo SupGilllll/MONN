@@ -35,16 +35,18 @@ import pickle
 # if not os.path.exists(file_path):
 #     print(f"file {file_path} not in")
 
+with open('/data/zhao/MONN/create_dataset/out4_interaction_dict', 'rb') as f:
+    out4_interaction_dict = pickle.load(f)
 with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
     out5_pocket_dict = pickle.load(f)
 with open('create_dataset/out7_final_pairwise_interaction_dict', 'rb') as f:
     out7_final_interaction_dict = pickle.load(f)
 with open('/data/zhao/MONN/create_dataset/out8_final_pocket_dict', 'rb') as f:
     out8_final_pocket_dict = pickle.load(f)
-with open('/data/zhao/MONN/preprocessing/surface_area_dict', 'rb') as f:
-    surface_area_dict = pickle.load(f)
-with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
-        pocket_area_dict = pickle.load(f)
+# with open('/data/zhao/MONN/preprocessing/surface_area_dict', 'rb') as f:
+#     surface_area_dict = pickle.load(f)
+# with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+#     pocket_area_dict = pickle.load(f)
 # print(out5_pocket_dict['6mu1']['pocket']['A'][0])
 # print(''.join([out8_final_pocket_dict['6mu1']['uniprot_seq'][idx] for idx in out8_final_pocket_dict['6mu1']['pocket_in_uniprot_seq']]))
 print("honey")
