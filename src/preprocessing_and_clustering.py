@@ -18,6 +18,7 @@ os.chdir('/data/zhao/MONN/src')
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
 aa_list = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
+int_types = ['Hydrogen Bonds', 'Water Bridges', 'Hydrophobic Interactions', 'pi-Stacking', 'pi-Cation Interactions', 'Salt Bridges', 'Halogen Bonds']
 atom_fdim = len(elem_list) + 6 + 6 + 6 + 1
 bond_fdim = 6
 max_nb = 6
@@ -138,6 +139,7 @@ def get_pairwise_label(pdbid, interaction_dict):
         assert atom_element[nonH_position].tolist() == sdf_element.tolist()
         atom_name_list = atom_name_list[nonH_position].tolist()
         pairwise_mat = np.zeros((len(nonH_position), len(interaction_dict[pdbid]['uniprot_seq'])), dtype=np.int32)
+        # pairwise_mat = np.zeros((len(nonH_position), len(interaction_dict[pdbid]['uniprot_seq'], len(int_types))), dtype=np.int32)
         for atom_name, bond_type in interaction_dict[pdbid]['atom_bond_type']:
             atom_idx = atom_name_list.index(str(atom_name))
             assert atom_idx < len(nonH_position)

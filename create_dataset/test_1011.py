@@ -37,12 +37,12 @@ import pickle
 
 with open('/data/zhao/MONN/create_dataset/out4_interaction_dict', 'rb') as f:
     out4_interaction_dict = pickle.load(f)
-with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
-    out5_pocket_dict = pickle.load(f)
-with open('create_dataset/out7_final_pairwise_interaction_dict', 'rb') as f:
+# with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
+#     out5_pocket_dict = pickle.load(f)
+with open('/data/zhao/MONN/create_dataset/out7_final_pairwise_interaction_dict', 'rb') as f:
     out7_final_interaction_dict = pickle.load(f)
-with open('/data/zhao/MONN/create_dataset/out8_final_pocket_dict', 'rb') as f:
-    out8_final_pocket_dict = pickle.load(f)
+# with open('/data/zhao/MONN/create_dataset/out8_final_pocket_dict', 'rb') as f:
+#     out8_final_pocket_dict = pickle.load(f)
 # with open('/data/zhao/MONN/preprocessing/surface_area_dict', 'rb') as f:
 #     surface_area_dict = pickle.load(f)
 # with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
