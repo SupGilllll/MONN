@@ -7,6 +7,7 @@ import os
 import pickle
 import sys
 import numpy as np
+import math
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit import DataStructs
@@ -23,6 +24,8 @@ map_dict = {int_types[i]: i + 1 for i in range(len(int_types))}
 int_dict_single = {'Non-interaction': 0, 'Hydrogen Bonds': 0, 'Water Bridges': 0, 'Hydrophobic Interactions': 0, 'pi-Stacking': 0, 'pi-Cation Interactions': 0, 'Salt Bridges': 0, 'Halogen Bonds': 0}
 int_dict_multi = dict()
 non_count = 0
+total_count = 0
+int_count = 0
 atom_fdim = len(elem_list) + 6 + 6 + 6 + 1
 bond_fdim = 6
 max_nb = 6
@@ -134,6 +137,8 @@ def get_mol_dict():
 
 def get_pairwise_label(pdbid, interaction_dict):
     global non_count
+    global total_count
+    global int_count
     if pdbid in interaction_dict:
         sdf_element = np.array([atom.GetSymbol().upper() for atom in mol.GetAtoms()])
         atom_element = np.array(interaction_dict[pdbid]['atom_element'], dtype=str)
@@ -145,8 +150,7 @@ def get_pairwise_label(pdbid, interaction_dict):
         atom_name_list = atom_name_list[nonH_position].tolist()
         # new part 2023/12/04
         pairwise_mat = np.zeros((len(nonH_position), len(interaction_dict[pdbid]['uniprot_seq'])), dtype=np.int32)
-        pairwise_mat_binary = np.zeros((len(nonH_position), len(interaction_dict[pdbid]['uniprot_seq']), len(int_types) + 1), dtype=np.int32)
-        pairwise_mat_binary[:, :, 0] = 1
+        pairwise_mat_binary = np.ones((len(nonH_position), len(interaction_dict[pdbid]['uniprot_seq'])), dtype=np.int32)
         for atom_name, bond_type in interaction_dict[pdbid]['atom_bond_type']:
             real_type = bond_type.split('_')[0]
             atom_idx = atom_name_list.index(str(atom_name))
@@ -154,21 +158,24 @@ def get_pairwise_label(pdbid, interaction_dict):
             for seq_idx, bond_type_seq in interaction_dict[pdbid]['residue_bond_type']:
                 if bond_type == bond_type_seq:
                     pairwise_mat[atom_idx, seq_idx] = map_dict[real_type]
-                    if pairwise_mat_binary[atom_idx, seq_idx, 0] == 1:
-                        pairwise_mat_binary[atom_idx, seq_idx, 0] = 0
-                    pairwise_mat_binary[atom_idx, seq_idx, map_dict[real_type]] = 1
+                    if pairwise_mat_binary[atom_idx, seq_idx] == 1:
+                        pairwise_mat_binary[atom_idx, seq_idx] = 0
+                    pairwise_mat_binary[atom_idx, seq_idx] |= pow(2, map_dict[real_type])
         if len(np.where(pairwise_mat != 0)[0]) != 0:
-            non_count += np.sum(pairwise_mat_binary[:, :, 0] == 1)
+            non_count += np.sum(pairwise_mat_binary[:, :] == 1)
+            int_count += np.sum(pairwise_mat_binary[:, :] != 1)
+            total_count += pairwise_mat.shape[0] * pairwise_mat.shape[1]
             for idx in range(len(int_dict_single)):
                 if idx == 0:
                     int_dict_single['Non-interaction'] += np.count_nonzero(pairwise_mat == 0)
                 else:
                     int_dict_single[int_types[idx - 1]] += np.count_nonzero(pairwise_mat == idx)
-            positions = np.argwhere(pairwise_mat_binary[:, :, 0] != 1)
+            positions = np.argwhere(pairwise_mat_binary[:, :] != 1)
             for position in positions:
+                types = format(pairwise_mat_binary[position[0], position[1]], '08b')[::-1]
                 string = ''
-                for idx, element in enumerate(pairwise_mat_binary[position[0], position[1]]):
-                    if element == 1:
+                for idx, element in enumerate(types):
+                    if element == '1':
                         if idx == 0:
                             string += 'none_'
                         else:
@@ -376,3 +383,4 @@ if __name__ == "__main__":
     print('Number of unique proteins', len(protein_list))
     print(int_dict_multi)
     print(int_dict_single)
+    print(non_count, int_count, total_count)
