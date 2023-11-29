@@ -14,7 +14,7 @@ from sklearn.metrics import roc_auc_score
 import optuna
 
 from transformer_utils import *
-# from transformer_model import *
+from transformer_model_graph import *
 
 # no RNN
 #train and evaluate
@@ -219,7 +219,7 @@ def parse_args():
     parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_new')
-    parser.add_argument('--clu_thre', type = float, default = 0.3)
+    parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
     parser.add_argument('--activation', type = str, default = 'elu')
     parser.add_argument('--optimizer', type = str, default = 'RAdam')
@@ -236,7 +236,7 @@ def parse_args():
     parser.add_argument('--d_model', type = int, default = 256)
     parser.add_argument('--dim_feedforward', type = int, default = 512)
     parser.add_argument('--nhead', type = int, default = 1)
-    parser.add_argument('--loss_weight', type = float, default = 0.9)
+    parser.add_argument('--loss_weight', type = float, default = 0.7)
 
     args = parser.parse_args()
     return args
@@ -342,44 +342,28 @@ def objective(trail):
     args.activation = trail.suggest_categorical('activation_func', ['elu', 'gelu', 'leaky_relu'])
     args.optimizer = trail.suggest_categorical('optimizer', ['Adam', 'SGD', 'RAdam', 'Adagrad'])
     args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'none', 'StepLR_10', 'ReduceLROnPlateau', 'StepLR_5', 'LinearLR'])
-    # args.lr = trail.suggest_float('lr', 1e-4, 1e-3, step = 1e-4)
-    # args.num_layers = trail.suggest_int('num_layers', 1, 2)
-    # args.d_model = trail.suggest_int('hidden_dim', 128, 256, step = 16)
-    # args.nhead = trail.suggest_categorical('attention_heads', [1, 2, 4])
-    # args.activation = trail.suggest_categorical('activation_func', ['elu', 'leaky_relu', 'gelu'])
-    # args.optimizer = trail.suggest_categorical('optimizer', ['AdamW', 'RAdam', 'Adam'])
-    # args.scheduler = trail.suggest_categorical('scheduler', ['StepLR', 'LinearLR', 'ReduceLROnPlateauMax', 'ReduceLROnPlateauMin'])
-    # args.scheduler = trail.suggest_categorical('scheduler', ['StepLR_1', 'StepLR_2', 'StepLR_4', 'StepLR_8', 'none'])
     rmse = main(args)
     return rmse
 
 if __name__ == "__main__":
     os.chdir('/data/zhao/MONN/src')
     args = parse_args()
-    # setup_seed()
     # with open('../preprocessing/surface_area_dict', 'rb') as f:
     #     surface_area_dict = pickle.load(f)
     with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
-    if args.embedding == 't33':
-        from transformer_model_t33 import *
-    elif args.pos_encoding == 'none':
-        from transformer_model_graph import *
-    elif args.pos_encoding == 'absolute':
-        from transformer_model_absolute import *
-    elif args.pos_encoding == 'relative':
-        from transformer_model_relative import *
-    # st = time.time()
-    # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize')
-    # study.optimize(objective, n_trials = 90)
-    # print(study.best_params)
-    # print(study.best_trial)
-    # print(study.best_trial.value)
-    # print(format((time.time() - st) / 3600.0, ".3f"))
-    # fig1 = optuna.visualization.plot_contour(study)
-    # fig2 = optuna.visualization.plot_optimization_history(study)
-    # fig3 = optuna.visualization.plot_param_importances(study)
-    # fig1.write_html('../results/0807/contour_graph1.html')
-    # fig2.write_html('../results/0807/optimization_history_graph1.html') 
-    # fig3.write_html('../results/0807/param_importances_graph1.html') 
-    main(args)
+    
+    st = time.time()
+    study = optuna.create_study(study_name='Transformer Model Training', direction='minimize', sampler=optuna.samplers.TPESampler(seed=4023))
+    study.optimize(objective, n_trials = 80)
+    print(study.best_params)
+    print(study.best_trial)
+    print(study.best_trial.value)
+    print(format((time.time() - st) / 3600.0, ".3f"))
+    fig1 = optuna.visualization.plot_contour(study)
+    fig2 = optuna.visualization.plot_optimization_history(study)
+    fig3 = optuna.visualization.plot_param_importances(study)
+    fig1.write_html('../results/1204/contour_graph1.html')
+    fig2.write_html('../results/1204/optimization_history_graph1.html') 
+    fig3.write_html('../results/1204/param_importances_graph1.html') 
+    # main(args)

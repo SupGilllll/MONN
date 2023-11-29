@@ -8,6 +8,7 @@ create_dataset/uniprot*
 data/Components-pub.sdf
 preprocessing/*
 preprocessing_old/*
+preprocessing_multiclass/*
 __pycache__
 src/*.log
 src/*.npy
