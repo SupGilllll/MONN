@@ -194,12 +194,13 @@ def data_from_index(data_pack, idx_list):
     pdbid = data_pack[11][idx_list]
     pairwise_mask = data_pack[9][idx_list].astype(float).reshape(-1,1)
     pairwise_label = data_pack[10][idx_list]
-    return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label, pdbid]
+    pairwise_label_binary = data_pack[12][idx_list]
+    return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label, pdbid, pairwise_label_binary]
 
 
 def split_train_test_clusters(measure, clu_thre, n_fold):
     # load cluster dict
-    cluster_path = '../preprocessing/'
+    cluster_path = '../preprocessing_multiclass/'
     with open(cluster_path+measure+'_compound_cluster_dict_'+str(clu_thre), 'rb') as f:
         C_cluster_dict = pickle.load(f)
     with open(cluster_path+measure+'_protein_cluster_dict_'+str(clu_thre), 'rb') as f:
@@ -244,7 +245,7 @@ def split_train_test_clusters(measure, clu_thre, n_fold):
 
 def load_data(measure, setting, clu_thre, n_fold):
     # load data
-    with open('../preprocessing/pdbbind_all_combined_input_'+measure,'rb') as f:
+    with open('../preprocessing_multiclass/pdbbind_all_combined_input_'+measure,'rb') as f:
         data_pack = pickle.load(f)
     with open('./pid_len_dict', 'rb') as f:
         pid_len_dict = pickle.load(f)
@@ -361,15 +362,15 @@ def load_data(measure, setting, clu_thre, n_fold):
 # network utils
 def loading_emb(measure, embedding_method):
     #load intial atom and bond features (i.e., embeddings)
-    f = open('../preprocessing/pdbbind_all_atom_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_atom_dict_'+measure, 'rb')
     atom_dict = pickle.load(f)
     f.close()
     
-    f = open('../preprocessing/pdbbind_all_bond_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_bond_dict_'+measure, 'rb')
     bond_dict = pickle.load(f)
     f.close()
     
-    f = open('../preprocessing/pdbbind_all_word_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_word_dict_'+measure, 'rb')
     word_dict = pickle.load(f)
     f.close()
     
@@ -418,3 +419,16 @@ class Masked_BCELoss(nn.Module):
         loss = torch.sum(loss_all*loss_mask) / torch.sum(pairwise_mask).clamp(min=1e-10)
         return loss
 
+class Masked_CrossEntropyLoss(nn.Module):
+    def __init__(self):
+        super(Masked_CrossEntropyLoss, self).__init__()
+        self.criterion = nn.CrossEntropyLoss(reduction = 'none')
+    def forward(self, pred, label, pairwise_mask, vertex_mask, seq_mask):
+        vertex_mask = 1 - vertex_mask.float()
+        seq_mask = 1 - seq_mask.float()
+        batch_size = pred.size(0)
+        pred = pred.permute(0, 3, 1, 2)
+        loss_all = self.criterion(pred, label)
+        loss_mask = torch.matmul(vertex_mask.view(batch_size,-1,1), seq_mask.view(batch_size,1,-1))*pairwise_mask.view(-1, 1, 1)
+        loss = torch.sum(loss_all*loss_mask) / torch.sum(pairwise_mask).clamp(min=1e-10)
+        return loss

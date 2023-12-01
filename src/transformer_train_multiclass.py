@@ -13,8 +13,8 @@ import torch.optim as optim
 from sklearn.metrics import roc_auc_score
 import optuna
 
-from transformer_utils import *
-from transformer_model_graph import *
+from transformer_utils_multiclass import *
+from transformer_model_multiclass import *
 
 # no RNN
 #train and evaluate
@@ -32,7 +32,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
     print('total num params', pytorch_total_params)
 
     criterion1 = nn.MSELoss()
-    criterion2 = Masked_BCELoss()
+    criterion2 = Masked_CrossEntropyLoss()
 
     # optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
     if opt == 'Adam':
@@ -80,17 +80,17 @@ def train_and_eval(train_data, valid_data, test_data, params):
             if i % 20 == 0:
                 print('epoch', epoch, 'batch', i)
 
-            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, affinity_label, pairwise_mask, pairwise_label = \
-                [train_data[data_idx][shuffle_index[i * batch_size:(i+1)*batch_size]] for data_idx in range(10)]
+            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, \
+            input_seq, pids, affinity_label, pairwise_mask, pairwise_label, pdbid, pairwise_label_binary = \
+                [train_data[data_idx][shuffle_index[i * batch_size:(i+1)*batch_size]] for data_idx in range(12)]
             actual_batch_size = len(input_vertex)
 
-            inputs = [input_vertex, input_edge, input_atom_adj,
-                      input_bond_adj, input_num_nbs, input_seq]
+            inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
             compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
-            pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
+            pairwise_label = torch.LongTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             optimizer.zero_grad()
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
@@ -99,7 +99,6 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
             loss_aff = criterion1(affinity_pred, affinity_label)
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
-            # loss = loss_aff + 0.1 * loss_pairwise
             loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
 
             total_loss += float(loss.data*actual_batch_size)
@@ -118,31 +117,33 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
         perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC']
 
-        valid_performance, valid_label, valid_output, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
-        loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
-        print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
-        print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
+        # valid_performance, valid_label, valid_output, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
+        # loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
+        # print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
+        # print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
         
-        if (1 + epoch) % 5 == 0:
-            train_performance, train_label, train_output, _, _, _ = test(net, train_data, batch_size)
-            print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
-            print('train', len(train_output), ' '.join(print_perf))
-        print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
-        print('valid', len(valid_output), ' '.join(print_perf))
+        # if (1 + epoch) % 5 == 0:
+        #     train_performance, train_label, train_output, _, _, _ = test(net, train_data, batch_size)
+        #     print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
+        #     print('train', len(train_output), ' '.join(print_perf))
+        # print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
+        # print('valid', len(valid_output), ' '.join(print_perf))
 
-        if valid_performance[0] < min_rmse:
-            min_rmse = valid_performance[0]
-            test_performance, test_label, test_output, _, _, _ = test(net, test_data, batch_size)
-        print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
-        print('test ', len(test_output), ' '.join(print_perf))
+        # if valid_performance[0] < min_rmse:
+        #     min_rmse = valid_performance[0]
+        #     test_performance, test_label, test_output, _, _, _ = test(net, test_data, batch_size)
+        # print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
+        # print('test ', len(test_output), ' '.join(print_perf))
 
-        if sch == 'ReduceLROnPlateau':
-            scheduler.step(total_loss_val)
-        else:
-            scheduler.step()
+        # if sch == 'ReduceLROnPlateau':
+        #     scheduler.step(total_loss_val)
+        # else:
+        #     scheduler.step()
+        scheduler.step()
 
     print('Finished Training')
-    return test_performance, test_label, test_output
+    # return test_performance, test_label, test_output
+    return 0, 0, 0
 
 
 def test(net, test_data, batch_size):
@@ -154,11 +155,12 @@ def test(net, test_data, batch_size):
     affinity_loss = 0
     pairwise_loss = 0
     criterion1 = nn.MSELoss()
-    criterion2 = Masked_BCELoss()
+    criterion2 = Masked_CrossEntropyLoss()
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
-            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq, pids, affinity_label, pairwise_mask, pairwise_label, pdbids = \
-                [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(11)]
+            input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, \
+            input_seq, pids, affinity_label, pairwise_mask, pairwise_label, pdbids, pairwise_label_binary = \
+                [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(12)]
             actual_batch_size = len(input_vertex)
             
             inputs = [input_vertex, input_edge, input_atom_adj,
@@ -167,7 +169,7 @@ def test(net, test_data, batch_size):
 
             l_affinity_label = torch.FloatTensor(affinity_label).cuda()
             l_pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
-            l_pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
+            l_pairwise_label = torch.LongTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
                                                nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
@@ -175,7 +177,6 @@ def test(net, test_data, batch_size):
             
             loss_aff = criterion1(affinity_pred, l_affinity_label)
             loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
-            # loss = loss_aff + 0.1 * loss_pairwise
             loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
 
             total_loss += float(loss.data*actual_batch_size)
@@ -216,26 +217,26 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
-    parser.add_argument('--activation', type = str, default = 'elu')
-    parser.add_argument('--optimizer', type = str, default = 'RAdam')
+    parser.add_argument('--activation', type = str, default = 'gelu')
+    parser.add_argument('--optimizer', type = str, default = 'Adam')
     parser.add_argument('--scheduler', type = str, default = 'none')
     parser.add_argument('--n_rep', type = int, default = 1)
     parser.add_argument('--epochs', type = int, default = 15)
     parser.add_argument('--batch_size', type = int, default = 32)
-    parser.add_argument('--lr', type = float, default = 5.5e-4)
+    parser.add_argument('--lr', type = float, default = 8e-4)
     parser.add_argument('--pos_encoding', type = str, default = 'none')
     parser.add_argument('--encoder_layers', type = int, default = 2)
-    parser.add_argument('--decoder_layers', type = int, default = 4)
+    parser.add_argument('--decoder_layers', type = int, default = 3)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
     parser.add_argument('--d_model', type = int, default = 256)
     parser.add_argument('--dim_feedforward', type = int, default = 512)
-    parser.add_argument('--nhead', type = int, default = 1)
+    parser.add_argument('--nhead', type = int, default = 4)
     parser.add_argument('--loss_weight', type = float, default = 0.7)
 
     args = parser.parse_args()
@@ -273,7 +274,7 @@ def main(args):
 
     assert setting in ['new_compound', 'new_protein', 'new_new', 'imputation']
     assert clu_thre in [0.3, 0.4, 0.5, 0.6]
-    assert measure in ['IC50', 'KIKD']
+    assert measure in ['IC50', 'KIKD', 'ALL']
     assert embedding in ['blosum62', 'one-hot', 't33']
     
     para_names = ['measure', 'setting', 'clu_thre', 'embedding', 'activation', 'optimizer', 'scheduler', 
@@ -353,17 +354,17 @@ if __name__ == "__main__":
     with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     
-    st = time.time()
-    study = optuna.create_study(study_name='Transformer Model Training', direction='minimize', sampler=optuna.samplers.TPESampler(seed=1129))
-    study.optimize(objective, n_trials = 80)
-    print(study.best_params)
-    print(study.best_trial)
-    print(study.best_trial.value)
-    print(format((time.time() - st) / 3600.0, ".3f"))
-    fig1 = optuna.visualization.plot_contour(study)
-    fig2 = optuna.visualization.plot_optimization_history(study)
-    fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/1204/contour_graph1.html')
-    fig2.write_html('../results/1204/optimization_history_graph1.html') 
-    fig3.write_html('../results/1204/param_importances_graph1.html') 
-    # main(args)
+    # st = time.time()
+    # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize', sampler=optuna.samplers.TPESampler(seed=1129))
+    # study.optimize(objective, n_trials = 80)
+    # print(study.best_params)
+    # print(study.best_trial)
+    # print(study.best_trial.value)
+    # print(format((time.time() - st) / 3600.0, ".3f"))
+    # fig1 = optuna.visualization.plot_contour(study)
+    # fig2 = optuna.visualization.plot_optimization_history(study)
+    # fig3 = optuna.visualization.plot_param_importances(study)
+    # fig1.write_html('../results/1204/contour_graph1.html')
+    # fig2.write_html('../results/1204/optimization_history_graph1.html') 
+    # fig3.write_html('../results/1204/param_importances_graph1.html') 
+    main(args)

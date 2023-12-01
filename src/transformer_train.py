@@ -208,7 +208,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'KIKD')
     parser.add_argument('--setting', type = str, default = 'new_protein')
     parser.add_argument('--clu_thre', type = float, default = 0.3)

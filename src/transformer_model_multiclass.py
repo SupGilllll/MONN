@@ -168,6 +168,7 @@ class PairwiseOutputLayer(nn.Module):
         # Implementation of Feedforward model
         self.linear_compound = nn.Linear(d_model, d_model, **factory_kwargs)
         self.linear_protein = nn.Linear(d_model, d_model, **factory_kwargs)
+        self.linear1 = nn.Linear(d_model, 8)
         # self.dropout1 = nn.Dropout(dropout)
         # self.dropout2 = nn.Dropout(dropout)
 
@@ -183,9 +184,12 @@ class PairwiseOutputLayer(nn.Module):
         # y = self.dropout2(self.activation(self.linear_protein(y)))
         x = self.activation(self.linear_compound(x))
         y = self.activation(self.linear_protein(y))
-        pairwise_pred = torch.sigmoid(torch.matmul(x, y.transpose(1,2)))
-        pairwise_mask = torch.matmul(torch.unsqueeze(1 - c_bool_mask.float(), 2), torch.unsqueeze(1 - p_bool_mask.float(), 1))
-        pairwise_pred = pairwise_pred * pairwise_mask
+        x_expand = x.unsqueeze(2)
+        y_expand = y.unsqueeze(1)
+        pairwise_pred = x_expand + y_expand
+        pairwise_pred = self.linear1(pairwise_pred)
+        # pairwise_mask = torch.matmul(torch.unsqueeze(1 - c_bool_mask.float(), 2), torch.unsqueeze(1 - p_bool_mask.float(), 1))
+        # pairwise_pred = pairwise_pred * pairwise_mask
 
         return pairwise_pred
     

@@ -184,8 +184,8 @@ class PairwiseOutputLayer(nn.Module):
         x = self.activation(self.linear_compound(x))
         y = self.activation(self.linear_protein(y))
         pairwise_pred = torch.sigmoid(torch.matmul(x, y.transpose(1,2)))
-        pairwise_mask = torch.matmul(torch.unsqueeze(1 - c_bool_mask.float(), 2), torch.unsqueeze(1 - p_bool_mask.float(), 1))
-        pairwise_pred = pairwise_pred * pairwise_mask
+        # pairwise_mask = torch.matmul(torch.unsqueeze(1 - c_bool_mask.float(), 2), torch.unsqueeze(1 - p_bool_mask.float(), 1))
+        # pairwise_pred = pairwise_pred * pairwise_mask
 
         return pairwise_pred
     

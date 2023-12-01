@@ -264,8 +264,6 @@ if __name__ == "__main__":
     mol_dict = get_mol_dict()
     with open('../data/interaction_dict','rb') as f:
         interaction_dict = pickle.load(f)
-    with open('/data/zhao/MONN/create_dataset/out7_final_pairwise_interaction_dict','rb') as f:
-        interaction_dict1 = pickle.load(f)
     
     # initialize feature dicts
     wlnn_train_list = []
@@ -323,7 +321,7 @@ if __name__ == "__main__":
     valid_pid_list = []
     valid_pairwise_mask_list = []
     valid_pairwise_mat_list = []
-    vaild_pairwise_mat_binary_list = []
+    valid_pairwise_mat_binary_list = []
     mol_inputs, seq_inputs = [], []
     
     # get inputs
@@ -340,7 +338,7 @@ if __name__ == "__main__":
         valid_pid_list.append(pid)
         valid_pairwise_mask_list.append(pairwise_mask)
         valid_pairwise_mat_list.append(pairwise_mat)
-        vaild_pairwise_mat_binary_list.append(pairwise_mat_binary)
+        valid_pairwise_mat_binary_list.append(pairwise_mat_binary)
         wlnn_train_list.append(pdbid)
     
     print('Step 4/5, saving data...')
@@ -352,7 +350,7 @@ if __name__ == "__main__":
                  np.array(valid_value_list, dtype = object), np.array(valid_cid_list, dtype = object), 
                  np.array(valid_pid_list, dtype = object), np.array(valid_pairwise_mask_list, dtype = object), 
                  np.array(valid_pairwise_mat_list, dtype = object), np.array(wlnn_train_list, dtype = object),
-                 np.array(vaild_pairwise_mat_binary_list, dtype = object)]
+                 np.array(valid_pairwise_mat_binary_list, dtype = object)]
     
     # save data
     with open('../preprocessing_multiclass/pdbbind_all_combined_input_'+MEASURE, 'wb') as f:
