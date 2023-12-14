@@ -60,6 +60,12 @@ def pad_label_2d(label, vertex, sequence):
         a[i, :arr.shape[0], :arr.shape[1]] = arr
     return a
 
+def transform_tensor(label):
+    label_list = []
+    for arr in label:
+        label_list.append(torch.LongTensor(arr.astype(np.int64)))
+    return label_list
+
 
 def pack2D(arr_list):
     N = max([x.shape[0] for x in arr_list])
@@ -422,7 +428,9 @@ class Masked_BCELoss(nn.Module):
 class Masked_CrossEntropyLoss(nn.Module):
     def __init__(self):
         super(Masked_CrossEntropyLoss, self).__init__()
-        self.criterion = nn.CrossEntropyLoss(reduction = 'none')
+        self.weight = torch.Tensor([1.4e-4, 5.8e-1, 1.6, 3.8e-1, 7.3e-1, 3.5, 1.6, 2.2e+01]).cuda()
+        self.criterion = nn.CrossEntropyLoss(reduction = 'none', weight = self.weight)
+        # self.criterion = nn.CrossEntropyLoss(reduction = 'none')
     def forward(self, pred, label, pairwise_mask, vertex_mask, seq_mask):
         vertex_mask = 1 - vertex_mask.float()
         seq_mask = 1 - seq_mask.float()

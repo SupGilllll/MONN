@@ -7,8 +7,6 @@ import os
 
 import torch
 from torch import nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 import torch.optim as optim
 from sklearn.metrics import roc_auc_score
 import optuna
@@ -26,7 +24,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
     net = Transformer(init_atoms = init_atoms, init_bonds = init_bonds, init_residues = init_residues, 
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
                       nhead = nhead, num_encoder_layers = num_encoder_layers, activation = activation,
-                      num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda()  
+                      num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda() 
+    # net.apply(weights_init) 
     net.train()
     pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
     print('total num params', pytorch_total_params)
@@ -101,6 +100,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
             # loss = loss_aff + 0.1 * loss_pairwise
             loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
+            # print("training stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -177,6 +177,7 @@ def test(net, test_data, batch_size):
             loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
             # loss = loss_aff + 0.1 * loss_pairwise
             loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
+            # print("test stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(l_pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -221,7 +222,7 @@ def parse_args():
     parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
-    parser.add_argument('--activation', type = str, default = 'gelu')
+    parser.add_argument('--activation', type = str, default = 'leaky_relu')
     parser.add_argument('--optimizer', type = str, default = 'Adam')
     parser.add_argument('--scheduler', type = str, default = 'none')
     parser.add_argument('--n_rep', type = int, default = 1)
@@ -353,17 +354,17 @@ if __name__ == "__main__":
     with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     
-    st = time.time()
-    study = optuna.create_study(study_name='Transformer Model Training', direction='minimize', sampler=optuna.samplers.TPESampler(seed=1130))
-    study.optimize(objective, n_trials = 80)
-    print(study.best_params)
-    print(study.best_trial)
-    print(study.best_trial.value)
-    print(format((time.time() - st) / 3600.0, ".3f"))
-    fig1 = optuna.visualization.plot_contour(study)
-    fig2 = optuna.visualization.plot_optimization_history(study)
-    fig3 = optuna.visualization.plot_param_importances(study)
-    fig1.write_html('../results/1204/contour_graph1.html')
-    fig2.write_html('../results/1204/optimization_history_graph1.html') 
-    fig3.write_html('../results/1204/param_importances_graph1.html') 
-    # main(args)
+    # st = time.time()
+    # study = optuna.create_study(study_name='Transformer Model Training', direction='minimize', sampler=optuna.samplers.TPESampler(seed=1130))
+    # study.optimize(objective, n_trials = 80)
+    # print(study.best_params)
+    # print(study.best_trial)
+    # print(study.best_trial.value)
+    # print(format((time.time() - st) / 3600.0, ".3f"))
+    # fig1 = optuna.visualization.plot_contour(study)
+    # fig2 = optuna.visualization.plot_optimization_history(study)
+    # fig3 = optuna.visualization.plot_param_importances(study)
+    # fig1.write_html('../results/1204/contour_graph1.html')
+    # fig2.write_html('../results/1204/optimization_history_graph1.html') 
+    # fig3.write_html('../results/1204/param_importances_graph1.html') 
+    main(args)

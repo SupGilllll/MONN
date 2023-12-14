@@ -7,8 +7,6 @@ import os
 
 import torch
 from torch import nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 import torch.optim as optim
 from sklearn.metrics import roc_auc_score
 import optuna
@@ -96,6 +94,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
             loss_aff = criterion1(affinity_pred, affinity_label)
             loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
             loss = loss_aff + 0.1 * loss_pairwise
+            # print("training stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -169,6 +168,7 @@ def test(net, test_data, batch_size):
             loss_aff = criterion1(affinity_pred, l_affinity_label)
             loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
             loss = loss_aff + 0.1 * loss_pairwise
+            # print("test stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(l_pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
             affinity_loss += float(loss_aff.data*actual_batch_size)
@@ -210,8 +210,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
     parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'KIKD')
-    parser.add_argument('--setting', type = str, default = 'new_protein')
-    parser.add_argument('--clu_thre', type = float, default = 0.3)
+    parser.add_argument('--setting', type = str, default = 'new_new')
+    parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
     parser.add_argument('--activation', type = str, default = 'gelu')
     parser.add_argument('--optimizer', type = str, default = 'Adam')

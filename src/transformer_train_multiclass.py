@@ -10,7 +10,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.optim as optim
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import confusion_matrix, classification_report, f1_score
 import optuna
 
 from transformer_utils_multiclass import *
@@ -75,6 +75,11 @@ def train_and_eval(train_data, valid_data, test_data, params):
         total_loss = 0
         affinity_loss = 0
         pairwise_loss = 0
+        # n_classes = 8
+        # count = np.zeros(n_classes, dtype = np.int32)
+        # sample_count = np.zeros(n_classes, dtype = np.int32)
+        # total_sites_count = 0
+        # total_sample_count = 0
 
         for i in range(math.ceil(len(train_data[0])/batch_size)):
             if i % 20 == 0:
@@ -87,6 +92,18 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
             inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
             compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
+
+            # int_mask = pairwise_mask.astype(np.int32)
+            # for idx in range(len(pairwise_label)):
+            #     if int_mask[idx]:
+            #         element = pairwise_label[idx].astype(np.int32)
+            #         total_sample_count += 1
+            #         total_sites_count += element.size
+            #         for c in range(n_classes):
+            #             c_sum = np.sum(element==c)  #统计c类像素的个数
+            #             count[c] += c_sum
+            #             if  c_sum != 0:  #判断该图片中是否存在第c类像素，如果存在则第c类图片个数+1
+            #                 sample_count[c] += 1
 
             affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
@@ -109,48 +126,57 @@ def train_and_eval(train_data, valid_data, test_data, params):
             nn.utils.clip_grad_norm_(net.parameters(), 5)
             optimizer.step()
 
-        
+        # print("count of different class sites", count)
+        # print("total sites count", np.sum(count))
+        # print("proportion of different class sites", (count/np.sum(count)))
+        # print("total count", total_sites_count, total_sample_count)
+
+        # print("the number of samples including specific class sites", sample_count)
+        # frequency = count / total_sites_count  
+        # print("frequency", frequency)
+        # median = np.median(frequency)
+        # weight = median / frequency
+        # print("weights", weight)
         loss_list = [total_loss, affinity_loss, pairwise_loss]
         loss_name = ['total loss', 'affinity loss', 'pairwise loss']
         print_loss = [loss_name[i] + ' ' + str(round(loss_list[i] / float(len(train_data[0])), 6)) for i in range(len(loss_name))]
         print('epoch:', epoch, 'training loss', ' '.join(print_loss))
 
-        perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC']
+        perf_name = ['RMSE', 'Pearson', 'Spearman', 'F1_score_micro', 'F1_score_macro', 'F1_score_weighted']
 
-        # valid_performance, valid_label, valid_output, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
-        # loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
-        # print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
-        # print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
+        valid_performance, _, _, _, _, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
+        loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
+        print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
+        print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
         
-        # if (1 + epoch) % 5 == 0:
-        #     train_performance, train_label, train_output, _, _, _ = test(net, train_data, batch_size)
-        #     print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
-        #     print('train', len(train_output), ' '.join(print_perf))
-        # print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
-        # print('valid', len(valid_output), ' '.join(print_perf))
+        if (1 + epoch) % 5 == 0:
+            train_performance, _, _, _, _, _, _, _ = test(net, train_data, batch_size)
+            print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
+            print('train', len(train_data[0]), ' '.join(print_perf))
+        print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
+        print('valid', len(valid_data[0]), ' '.join(print_perf))
 
-        # if valid_performance[0] < min_rmse:
-        #     min_rmse = valid_performance[0]
-        #     test_performance, test_label, test_output, _, _, _ = test(net, test_data, batch_size)
-        # print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
-        # print('test ', len(test_output), ' '.join(print_perf))
+        if valid_performance[0] < min_rmse:
+            min_rmse = valid_performance[0]
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred, _, _, _ = test(net, test_data, batch_size)
+        print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
+        print('test ', len(test_data[0]), ' '.join(print_perf))
 
-        # if sch == 'ReduceLROnPlateau':
-        #     scheduler.step(total_loss_val)
-        # else:
-        #     scheduler.step()
-        scheduler.step()
+        if sch == 'ReduceLROnPlateau':
+            scheduler.step(total_loss_val)
+        else:
+            scheduler.step()
 
     print('Finished Training')
-    # return test_performance, test_label, test_output
-    return 0, 0, 0
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred
 
 
 def test(net, test_data, batch_size):
     net.eval()
-    output_list = []
-    label_list = []
-    pairwise_auc_list = []
+    aff_pred = []
+    aff_label = []
+    interaction_pred = torch.empty(0, dtype=torch.int64)
+    interaction_label = torch.empty(0, dtype=torch.int64)
     total_loss = 0
     affinity_loss = 0
     pairwise_loss = 0
@@ -163,13 +189,13 @@ def test(net, test_data, batch_size):
                 [test_data[data_idx][i*batch_size:(i+1)*batch_size] for data_idx in range(12)]
             actual_batch_size = len(input_vertex)
             
-            inputs = [input_vertex, input_edge, input_atom_adj,
-                      input_bond_adj, input_num_nbs, input_seq]
+            inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
             compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
             l_affinity_label = torch.FloatTensor(affinity_label).cuda()
             l_pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             l_pairwise_label = torch.LongTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
+            pairwise_label_list = transform_tensor(pairwise_label)
 
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
                                                nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
@@ -189,9 +215,14 @@ def test(net, test_data, batch_size):
                 if pairwise_mask[j]:
                     num_vertex = int(torch.sum(vertex_mask[j, :]))
                     num_residue = int(torch.sum(seq_mask[j, :]))
-                    pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
-                    pairwise_label_i = pairwise_label[j].reshape(-1)
-                    pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
+                    predicted_classes = torch.argmax(pairwise_pred[j, :num_vertex, :num_residue], dim=-1)
+                    interaction_pred = torch.cat((interaction_pred, predicted_classes.cpu().detach().view(-1)))
+                    interaction_label = torch.cat((interaction_label, pairwise_label_list[j].view(-1)))
+                    # *** version 0 (binary-classification case) ***
+                    # pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
+                    # pairwise_label_i = pairwise_label[j].reshape(-1)
+                    # pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
+                    # *** version 1 (auc only in pocket area) ***
                     # pocket_area_list = pocket_area_dict[pdbids[j]]['pocket_in_uniprot_seq']
                     # pairwise_pred_i = pairwise_pred[j, :num_vertex, pocket_area_list].cpu().detach().numpy().reshape(-1)
                     # pairwise_label_i = pairwise_label[j][:, pocket_area_list].reshape(-1)
@@ -199,26 +230,30 @@ def test(net, test_data, batch_size):
                     #     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
                     # except ValueError:
                     #     pass
-                    # pairwise_pred_i = pairwise_pred[j, :num_vertex, surface_area_dict[pids[j]]].cpu().detach().numpy().reshape(-1)
-                    # pairwise_label_i = pairwise_label[j][:, surface_area_dict[pids[j]]].reshape(-1)
-                    # try:
-                    #     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
-                    # except ValueError:
-                    #     pass
-            output_list += affinity_pred.cpu().detach().numpy().reshape(-1).tolist()
-            label_list += affinity_label.reshape(-1).tolist()
-    output_list = np.array(output_list)
-    label_list = np.array(label_list)
-    rmse_value, pearson_value, spearman_value = reg_scores(label_list, output_list)
-    average_pairwise_auc = np.mean(pairwise_auc_list)
+            # print(torch.count_nonzero(interaction_pred))
+            aff_pred += affinity_pred.cpu().detach().numpy().reshape(-1).tolist()
+            aff_label += affinity_label.reshape(-1).tolist()
+    aff_pred = np.array(aff_pred)
+    aff_label = np.array(aff_label)
+    rmse_value, pearson_value, spearman_value = reg_scores(aff_label, aff_pred)
+    interaction_pred = interaction_pred.numpy()
+    interaction_label = interaction_label.numpy()
+    # set multiple f1 score
+    f1_score_micro = f1_score(interaction_label, interaction_pred, average='micro')
+    f1_score_macro = f1_score(interaction_label, interaction_pred, average='macro')
+    f1_score_weighted = f1_score(interaction_label, interaction_pred, average='weighted')
+    conf_matrix = confusion_matrix(interaction_label, interaction_pred)
+    # class_report = classification_report(interaction_label, interaction_pred)
+    print("Confusion Matrix:\n", conf_matrix)
+    # print("Classification Report:\n", class_report)
 
-    test_performance = [rmse_value, pearson_value, spearman_value, average_pairwise_auc]
-    return test_performance, label_list, output_list, total_loss, affinity_loss, pairwise_loss
+    test_performance = [rmse_value, pearson_value, spearman_value, f1_score_micro, f1_score_macro, f1_score_weighted]
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred, total_loss, affinity_loss, pairwise_loss
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
-    parser.add_argument('--measure', type = str, default = 'KIKD')
+    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--measure', type = str, default = 'ALL')
     parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
@@ -301,6 +336,8 @@ def main(args):
         # load data
         data_pack, train_idx_list, valid_idx_list, test_idx_list = load_data(measure, setting, clu_thre, n_fold)
         fold_score_list = []
+        total_interaction_label = np.empty([0], dtype=np.int32)
+        total_interaction_pred = np.empty([0], dtype=np.int32)
 
         for a_fold in range(n_fold):
             fold_start_time = time.time()
@@ -312,7 +349,9 @@ def main(args):
             valid_data = data_from_index(data_pack, valid_idx)
             test_data = data_from_index(data_pack, test_idx)
 
-            test_performance, test_label, test_output = train_and_eval(train_data, valid_data, test_data, params)
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
+            total_interaction_label = np.append(total_interaction_label, interaction_label)
+            total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
             rep_all_list.append(test_performance)
             fold_score_list.append(test_performance)
             print('-'*30)
@@ -321,14 +360,18 @@ def main(args):
         print('fold avg performance', np.mean(fold_score_list, axis=0))
         rep_avg_list.append(np.mean(fold_score_list, axis=0))
         # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
+        conf_matrix = confusion_matrix(total_interaction_label, total_interaction_pred)
+        class_report = classification_report(total_interaction_label, total_interaction_pred)
+        print("Confusion Matrix:\n", conf_matrix)
+        print("Classification Report:\n", class_report)
 
     print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')
     print('all repetitions done')
-    print('print all stats: RMSE, Pearson, Spearman, avg pairwise AUC')
+    print('print all stats: RMSE, Pearson, Spearman, micro f1 score, macro f1 score, weighted f1 score')
     print('mean', np.mean(rep_all_list, axis=0))
     print('std', np.std(rep_all_list, axis=0))
     print('==============')
-    print('print avg stats:  RMSE, Pearson, Spearman, avg pairwise AUC')
+    print('print avg stats:  RMSE, Pearson, Spearman, micro f1 score, macro f1 score, weighted f1 score')
     print('mean', np.mean(rep_avg_list, axis=0))
     print('std', np.std(rep_avg_list, axis=0))
     # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
