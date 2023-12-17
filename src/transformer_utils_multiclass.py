@@ -7,6 +7,7 @@ from sklearn.model_selection import KFold
 import torch
 from torch import nn
 from metrics import *
+from unbalanced_loss.focal_loss import MultiFocalLoss
 
 elem_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'W', 'Ru', 'Nb', 'Re', 'Te', 'Rh', 'Tc', 'Ba', 'Bi', 'Hf', 'Mo', 'U', 'Sm', 'Os', 'Ir', 'Ce','Gd','Ga','Cs', 'unknown']
 atom_fdim = len(elem_list) + 6 + 6 + 6 + 1
@@ -19,7 +20,7 @@ def setup_seed(seed = 42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.benchmark = False
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
 def reg_scores(label, pred):
     label = label.reshape(-1)
@@ -66,6 +67,12 @@ def transform_tensor(label):
         label_list.append(torch.LongTensor(arr.astype(np.int64)))
     return label_list
 
+def adjust_label(predicted, binary_label, label):
+    predicted_results = torch.pow(2, predicted)
+    multi_pos = predicted_results & binary_label
+    multi_pos = multi_pos.bool()
+    label[multi_pos] = predicted[multi_pos]
+    return label 
 
 def pack2D(arr_list):
     N = max([x.shape[0] for x in arr_list])
@@ -410,6 +417,11 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, mean=0, std=min(1.0 / math.sqrt(m.weight.data.shape[-1]), 0.1))
         nn.init.constant_(m.bias, 0)
 
+def remove_non_interaction_class_from_results(total_interaction_label, total_interaction_pred):
+    mask = (total_interaction_label != 0) & (total_interaction_pred != 0)
+    label = total_interaction_label[mask]
+    pred = total_interaction_pred[mask]
+    return label, pred
 
 #Custom loss
 class Masked_BCELoss(nn.Module):
@@ -426,9 +438,12 @@ class Masked_BCELoss(nn.Module):
         return loss
 
 class Masked_CrossEntropyLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, label_weight = 1.4e-4):
         super(Masked_CrossEntropyLoss, self).__init__()
-        self.weight = torch.Tensor([1.4e-4, 5.8e-1, 1.6, 3.8e-1, 7.3e-1, 3.5, 1.6, 2.2e+01]).cuda()
+        # self.weight = torch.Tensor([label_weight, 5.8e-1, 1.6, 3.8e-1, 7.3e-1, 3.5, 1.6, 2.2e+01]).cuda()
+        # self.weight = torch.Tensor([1.47e-4, 5.86e-1, 1.81, 4.69e-1, 8.3e-1, 3.85, 1.26, 2.55e+01]).cuda() #new weight1 from whole set
+        # self.weight = torch.Tensor([1.47e-3, 5.86, 1.81e+01, 4.69, 8.3, 3.85e+01, 1.26e+01, 2.55e+02]).cuda() #new weight2 from whole set * 10
+        self.weight = torch.Tensor([1e-4, 4.00e-1, 1.23, 3.2e-1, 5.67e-1, 2.63, 8.59e-1, 1.74e+01]).cuda() #new weight3 1 / freq / 1e4
         self.criterion = nn.CrossEntropyLoss(reduction = 'none', weight = self.weight)
         # self.criterion = nn.CrossEntropyLoss(reduction = 'none')
     def forward(self, pred, label, pairwise_mask, vertex_mask, seq_mask):
@@ -440,3 +455,21 @@ class Masked_CrossEntropyLoss(nn.Module):
         loss_mask = torch.matmul(vertex_mask.view(batch_size,-1,1), seq_mask.view(batch_size,1,-1))*pairwise_mask.view(-1, 1, 1)
         loss = torch.sum(loss_all*loss_mask) / torch.sum(pairwise_mask).clamp(min=1e-10)
         return loss
+    
+class Masked_FocalLoss(nn.Module):
+    def __init__(self, gamma = 2.0):
+        super(Masked_FocalLoss, self).__init__()
+        # self.alpha = [1, 4e3, 1.23e4, 3.2e3, 5.67e3, 2.63e4, 8.59e3, 1.74e5]
+        self.alpha = [1e-4, 4.00e-1, 1.23, 3.2e-1, 5.67e-1, 2.63, 8.59e-1, 1.74e+01]
+        self.criterion = MultiFocalLoss(num_class = 8, alpha = self.alpha, gamma = gamma, reduction = 'none').cuda()
+    def forward(self, pred, label, pairwise_mask, vertex_mask, seq_mask):
+        vertex_mask = 1 - vertex_mask.float()
+        seq_mask = 1 - seq_mask.float()
+        batch_size = pred.size(0)
+        pred = pred.permute(0, 3, 1, 2)
+        loss_all = self.criterion(pred, label)
+        loss_mask = torch.matmul(vertex_mask.view(batch_size,-1,1), seq_mask.view(batch_size,1,-1))*pairwise_mask.view(-1, 1, 1)
+        loss = torch.sum(loss_all*loss_mask) / torch.sum(pairwise_mask).clamp(min=1e-10)
+        return loss
+
+
