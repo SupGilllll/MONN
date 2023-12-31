@@ -8,7 +8,7 @@ import os
 import torch
 from torch import nn
 import torch.optim as optim
-from sklearn.metrics import confusion_matrix, classification_report, f1_score
+from sklearn.metrics import confusion_matrix, classification_report, f1_score, roc_auc_score
 import optuna
 import warnings
 
@@ -31,8 +31,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
     print('total num params', pytorch_total_params)
 
     criterion1 = nn.MSELoss()
-    # criterion2 = Masked_CrossEntropyLoss(label_weight = label_weight)
-    criterion2 = Masked_FocalLoss(gamma = focal_gamma)
+    criterion2 = Masked_CrossEntropyLoss(label_weight = label_weight)
+    # criterion2 = Masked_FocalLoss(gamma = focal_gamma)
 
     # optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
     if opt == 'Adam':
@@ -142,15 +142,16 @@ def train_and_eval(train_data, valid_data, test_data, params):
         print_loss = [loss_name[i] + ' ' + str(round(loss_list[i] / float(len(train_data[0])), 6)) for i in range(len(loss_name))]
         print('epoch:', epoch, 'training loss', ' '.join(print_loss))
 
-        perf_name = ['RMSE', 'Pearson', 'Spearman', 'F1_score_micro', 'F1_score_macro', 'F1_score_weighted']
+        perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC', 'fold AUC', \
+                    'F1_score_micro', 'F1_score_macro', 'F1_score_weighted']
 
-        valid_performance, _, _, _, _, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
+        valid_performance, _, _, _, _, _, _, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
         loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
         print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
         print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
         
         if (1 + epoch) % 5 == 0:
-            train_performance, _, _, _, _, _, _, _ = test(net, train_data, batch_size)
+            train_performance, _, _, _, _, _, _, _, _, _ = test(net, train_data, batch_size)
             print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
             print('train', len(train_data[0]), ' '.join(print_perf))
         print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
@@ -158,7 +159,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
         if valid_performance[0] < min_rmse:
             min_rmse = valid_performance[0]
-            test_performance, aff_label, aff_pred, interaction_label, interaction_pred, _, _, _ = test(net, test_data, batch_size)
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred, \
+            binary_interaction_label, binary_interaction_pred, _, _, _ = test(net, test_data, batch_size)
         print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
         print('test ', len(test_data[0]), ' '.join(print_perf))
 
@@ -168,21 +170,24 @@ def train_and_eval(train_data, valid_data, test_data, params):
             scheduler.step()
 
     print('Finished Training')
-    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred, binary_interaction_label, binary_interaction_pred
 
 
 def test(net, test_data, batch_size):
     net.eval()
-    aff_pred = []
-    aff_label = []
-    interaction_pred = torch.empty(0, dtype=torch.int64)
-    interaction_label = torch.empty(0, dtype=torch.int64)
+    pairwise_auc_list = []
+    aff_pred = np.empty([0], dtype=np.float32)
+    aff_label = np.empty([0], dtype=np.float32)
+    interaction_pred = np.empty([0], dtype=np.int32)
+    interaction_label = np.empty([0], dtype=np.int32)
+    binary_interaction_pred = np.empty([0], dtype=np.float32)
+    binary_interaction_label = np.empty([0], dtype=np.int32)
     total_loss = 0
     affinity_loss = 0
     pairwise_loss = 0
     criterion1 = nn.MSELoss()
-    # criterion2 = Masked_CrossEntropyLoss(label_weight = label_weight)
-    criterion2 = Masked_FocalLoss(gamma = focal_gamma)
+    criterion2 = Masked_CrossEntropyLoss(label_weight = label_weight)
+    # criterion2 = Masked_FocalLoss(gamma = focal_gamma)
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
             input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, \
@@ -196,8 +201,8 @@ def test(net, test_data, batch_size):
             l_affinity_label = torch.FloatTensor(affinity_label).cuda()
             l_pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             l_pairwise_label = torch.LongTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
-            pairwise_label_list = transform_tensor(pairwise_label)
-            pairwise_label_binary_list = transform_tensor(pairwise_label_binary)
+            # pairwise_label_list = transform_tensor(pairwise_label)
+            # pairwise_label_binary_list = transform_tensor(pairwise_label_binary)
 
             affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
                                                nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
@@ -217,10 +222,16 @@ def test(net, test_data, batch_size):
                 if pairwise_mask[j]:
                     num_vertex = int(torch.sum(vertex_mask[j, :]))
                     num_residue = int(torch.sum(seq_mask[j, :]))
-                    predicted_classes = torch.argmax(pairwise_pred[j, :num_vertex, :num_residue], dim=-1).cpu().detach()
-                    pairwise_label_list[j] = adjust_label(predicted_classes, pairwise_label_binary_list[j], pairwise_label_list[j])
-                    interaction_pred = torch.cat((interaction_pred, predicted_classes.view(-1)))
-                    interaction_label = torch.cat((interaction_label, pairwise_label_list[j].view(-1)))
+                    predicted_classes = torch.argmax(pairwise_pred[j, :num_vertex, :num_residue], dim=-1).cpu().detach().numpy()
+                    predicted_prob = 1 - torch.softmax(pairwise_pred[j, :num_vertex, :num_residue], dim=-1)[..., 0].cpu().detach().numpy().reshape(-1)
+                    pairwise_label[j] = adjust_label_numpy(predicted_classes, pairwise_label_binary[j], pairwise_label[j])
+                    interaction_pred = np.append(interaction_pred, predicted_classes.reshape(-1))
+                    interaction_label = np.append(interaction_label, pairwise_label[j].reshape(-1))
+                    pairwise_label_i = np.array(pairwise_label[j]).reshape(-1)
+                    pairwise_label_i[pairwise_label_i != 0] = 1 
+                    pairwise_auc_list.append(roc_auc_score(pairwise_label_i, predicted_prob))
+                    binary_interaction_pred = np.append(binary_interaction_pred, predicted_prob)
+                    binary_interaction_label = np.append(binary_interaction_label, pairwise_label_i)
                     # *** version 0 (binary-classification case) ***
                     # pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
                     # pairwise_label_i = pairwise_label[j].reshape(-1)
@@ -234,24 +245,24 @@ def test(net, test_data, batch_size):
                     # except ValueError:
                     #     pass
             # print(torch.count_nonzero(interaction_pred))
-            aff_pred += affinity_pred.cpu().detach().numpy().reshape(-1).tolist()
-            aff_label += affinity_label.reshape(-1).tolist()
-    aff_pred = np.array(aff_pred)
-    aff_label = np.array(aff_label)
+            aff_pred = np.append(aff_pred, affinity_pred.cpu().detach().numpy().reshape(-1))
+            aff_label = np.append(aff_label, affinity_label.reshape(-1))
     rmse_value, pearson_value, spearman_value = reg_scores(aff_label, aff_pred)
-    interaction_pred = interaction_pred.numpy()
-    interaction_label = interaction_label.numpy()
+    pairwise_auc_score = np.mean(pairwise_auc_list)
+    # fold_auc_score = roc_auc_score(binary_interaction_label, binary_interaction_pred)
     # set multiple f1 score
-    f1_score_micro = f1_score(interaction_label, interaction_pred, average='micro')
-    f1_score_macro = f1_score(interaction_label, interaction_pred, average='macro')
-    f1_score_weighted = f1_score(interaction_label, interaction_pred, average='weighted')
-    conf_matrix = confusion_matrix(interaction_label, interaction_pred)
+    # f1_score_micro = f1_score(interaction_label, interaction_pred, average='micro')
+    # f1_score_macro = f1_score(interaction_label, interaction_pred, average='macro')
+    # f1_score_weighted = f1_score(interaction_label, interaction_pred, average='weighted')
+    # conf_matrix = confusion_matrix(interaction_label, interaction_pred)
     # class_report = classification_report(interaction_label, interaction_pred)
-    print("Confusion Matrix:\n", conf_matrix)
+    # print("Confusion Matrix:\n", conf_matrix)
     # print("Classification Report:\n", class_report)
 
-    test_performance = [rmse_value, pearson_value, spearman_value, f1_score_micro, f1_score_macro, f1_score_weighted]
-    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred, total_loss, affinity_loss, pairwise_loss
+    test_performance = [rmse_value, pearson_value, spearman_value, pairwise_auc_score, \
+                        0, 0, 0, 0]
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred, \
+           binary_interaction_label, binary_interaction_pred, total_loss, affinity_loss, pairwise_loss
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
@@ -345,6 +356,8 @@ def main(args):
         fold_score_list = []
         total_interaction_label = np.empty([0], dtype=np.int32)
         total_interaction_pred = np.empty([0], dtype=np.int32)
+        total_binary_interaction_label = np.empty([0], dtype=np.int32)
+        total_binary_interaction_pred = np.empty([0], dtype=np.float32)
 
         for a_fold in range(n_fold):
             fold_start_time = time.time()
@@ -356,9 +369,12 @@ def main(args):
             valid_data = data_from_index(data_pack, valid_idx)
             test_data = data_from_index(data_pack, test_idx)
 
-            test_performance, aff_label, aff_pred, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred, \
+            binary_interaction_label, binary_interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
             total_interaction_label = np.append(total_interaction_label, interaction_label)
             total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
+            total_binary_interaction_label = np.append(total_binary_interaction_label, binary_interaction_label)
+            total_binary_interaction_pred = np.append(total_binary_interaction_pred, binary_interaction_pred)
             rep_all_list.append(test_performance)
             fold_score_list.append(test_performance)
             print('-'*30)
@@ -367,6 +383,9 @@ def main(args):
         print('fold avg performance', np.mean(fold_score_list, axis=0))
         rep_avg_list.append(np.mean(fold_score_list, axis=0))
         # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
+        print("========== Whole AUC ==========")
+        print("Score: ", roc_auc_score(total_binary_interaction_label, total_binary_interaction_pred))
+        print('==============')
         conf_matrix = confusion_matrix(total_interaction_label, total_interaction_pred)
         class_report = classification_report(total_interaction_label, total_interaction_pred)
         print("==========Confusion Matrix==========\n", conf_matrix)
@@ -380,13 +399,15 @@ def main(args):
 
     print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')
     print('all repetitions done')
-    print('print all stats: RMSE, Pearson, Spearman, micro f1 score, macro f1 score, weighted f1 score')
+    print('print all stats: RMSE, Pearson, Spearman, avg pairwise AUC, fold AUC, micro f1 score, macro f1 score, weighted f1 score')
     print('mean', np.mean(rep_all_list, axis=0))
     print('std', np.std(rep_all_list, axis=0))
     print('==============')
-    print('print avg stats:  RMSE, Pearson, Spearman, micro f1 score, macro f1 score, weighted f1 score')
+    print('print avg stats:  RMSE, Pearson, Spearman, avg pairwise AUC, fold AUC, micro f1 score, macro f1 score, weighted f1 score')
     print('mean', np.mean(rep_avg_list, axis=0))
     print('std', np.std(rep_avg_list, axis=0))
+    # np.save('/data/zhao/MONN/results/1227/multi-class/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_binary_interaction_label)
+    # np.save('/data/zhao/MONN/results/1227/multi-class/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_binary_interaction_pred)
     # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
     # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
     return np.mean(rep_all_list, axis=0)[0]

@@ -19,7 +19,7 @@ def setup_seed(seed = 42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.benchmark = False
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
 def reg_scores(label, pred):
     label = label.reshape(-1)
@@ -160,12 +160,16 @@ def data_from_index(data_pack, idx_list):
     pdbid = data_pack[11][idx_list]
     pairwise_mask = data_pack[9][idx_list].astype(float).reshape(-1,1)
     pairwise_label = data_pack[10][idx_list]
+    # read data from multi-class folder
+    for i in range(len(pairwise_label)):
+        pairwise_label[i][pairwise_label[i] != 0] = 1 
     return [fa, fb, anb, bnb, nbs_mat, seq_input, pid, aff_label, pairwise_mask, pairwise_label, pdbid]
 
 
 def split_train_test_clusters(measure, clu_thre, n_fold):
     # load cluster dict
-    cluster_path = '../preprocessing/'
+    # read data from multi-class folder
+    cluster_path = '../preprocessing_multiclass/'
     with open(cluster_path+measure+'_compound_cluster_dict_'+str(clu_thre), 'rb') as f:
         C_cluster_dict = pickle.load(f)
     with open(cluster_path+measure+'_protein_cluster_dict_'+str(clu_thre), 'rb') as f:
@@ -210,7 +214,7 @@ def split_train_test_clusters(measure, clu_thre, n_fold):
 
 def load_data(measure, setting, clu_thre, n_fold):
     # load data
-    with open('../preprocessing/pdbbind_all_combined_input_'+measure,'rb') as f:
+    with open('../preprocessing_multiclass/pdbbind_all_combined_input_'+measure,'rb') as f:
         data_pack = pickle.load(f)
     with open('./pid_len_dict', 'rb') as f:
         pid_len_dict = pickle.load(f)
@@ -327,15 +331,15 @@ def load_data(measure, setting, clu_thre, n_fold):
 # network utils
 def loading_emb(measure, embedding_method):
     #load intial atom and bond features (i.e., embeddings)
-    f = open('../preprocessing/pdbbind_all_atom_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_atom_dict_'+measure, 'rb')
     atom_dict = pickle.load(f)
     f.close()
     
-    f = open('../preprocessing/pdbbind_all_bond_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_bond_dict_'+measure, 'rb')
     bond_dict = pickle.load(f)
     f.close()
     
-    f = open('../preprocessing/pdbbind_all_word_dict_'+measure, 'rb')
+    f = open('../preprocessing_multiclass/pdbbind_all_word_dict_'+measure, 'rb')
     word_dict = pickle.load(f)
     f.close()
     

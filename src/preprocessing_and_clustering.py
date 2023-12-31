@@ -184,7 +184,7 @@ def compound_clustering(ligand_list, mol_list):
     # print('compound sim mat', sim_mat.shape)
     C_dist = pdist(fps, 'jaccard')
     C_link = single(C_dist)
-    for thre in [0.3, 0.4, 0.5, 0.6]:
+    for thre in [0.3, 0.4, 0.5]:
         C_clusters = fcluster(C_link, thre, 'distance')
         len_list = []
         for i in range(1,max(C_clusters)+1):
@@ -207,7 +207,7 @@ def protein_clustering(protein_list, idx_list):
         P_dist += (1-sim_mat[i,(i+1):]).tolist()
     P_dist = np.array(P_dist)
     P_link = single(P_dist)
-    for thre in [0.3, 0.4, 0.5, 0.6]:
+    for thre in [0.3, 0.4, 0.5]:
         P_clusters = fcluster(P_link, thre, 'distance')
         len_list = []
         for i in range(1,max(P_clusters)+1):
@@ -222,7 +222,7 @@ def pickle_dump(dictionary, file_name):
 
 if __name__ == "__main__":
     
-    MEASURE = 'IC50' # 'IC50' or 'KIKD'
+    MEASURE = 'ALL' # 'IC50' or 'KIKD' or 'ALL'
     print('Create dataset for measurement:', MEASURE)
     print('Step 1/5, loading dict...')
     # load label dicts
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         if pdbid in ['1gbt', '5g0q', '3rme', '3rxj']:
             continue
         # filter interaction type and invalid molecules
-        if MEASURE == 'All':
+        if MEASURE == 'ALL':
             pass
         elif MEASURE == 'KIKD':
             if measure not in ['Ki', 'Kd']:

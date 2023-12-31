@@ -4,9 +4,9 @@ import matplotlib
 
 # Data
 x = ['0.3', '0.4', '0.5']
-y1 = [1.768, 1.777, 1.790]
-y2 = [1.774, 1.835, 1.826]
-y3 = [1.819, 1.820, 1.861]
+y1 = [1.578, 1.582, 1.604]
+y2 = [1.649, 1.632, 1.699]
+y3 = [1.694, 1.646, 1.679]
 # x = ['0.4']
 # y1 = [1.706]
 # y2 = [1.705]
@@ -30,18 +30,19 @@ bar_width = 0.2
 index = np.arange(len(x_numeric))
 
 # Create the bar plots
-ax.bar(index - bar_width, y1, bar_width, label='Baseline model', align='center', color=colors1)
-ax.bar(index, y2, bar_width, label='Pure Transformer backbone', align='center', color=colors2)
-ax.bar(index + bar_width, y3, bar_width, label='Transformer backbone + graph network', align='center', color=colors3)
+ax.bar(index - bar_width, y1, bar_width, label='Baseline', align='center', color=colors1)
+ax.bar(index, y2, bar_width, label='Proposed Model (binary classification)', align='center', color=colors2)
+ax.bar(index + bar_width, y3, bar_width, label='Proposed Model (multi-class classification)', align='center', color=colors3)
 
 # Set labels, title, and legend
 ax.set_xlabel('Threshold')
 ax.set_ylabel('RMSE')
-ax.set_title('RMSE under both-new setting (KIKD)')
+ax.set_title('RMSE under both-new setting (ALL)')
 ax.set_xticks(index)
 ax.set_xticklabels(x_numeric)
-ax.set_ylim(1.7, 1.9)
+ax.set_ylim(1.5, 1.8)
 ax.legend(fontsize=12)
 
 # Show the plot
+plt.tight_layout()
 plt.savefig('plot.png')

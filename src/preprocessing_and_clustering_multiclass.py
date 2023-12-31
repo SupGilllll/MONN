@@ -136,9 +136,7 @@ def get_mol_dict():
 
 
 def get_pairwise_label(pdbid, interaction_dict):
-    global non_count
-    global total_count
-    global int_count
+    global non_count, total_count, int_count
     if pdbid in interaction_dict:
         sdf_element = np.array([atom.GetSymbol().upper() for atom in mol.GetAtoms()])
         atom_element = np.array(interaction_dict[pdbid]['atom_element'], dtype=str)

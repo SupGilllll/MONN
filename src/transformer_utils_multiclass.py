@@ -74,6 +74,13 @@ def adjust_label(predicted, binary_label, label):
     label[multi_pos] = predicted[multi_pos]
     return label 
 
+def adjust_label_numpy(predicted, binary_label, label):
+    predicted_results = np.power(2, predicted)
+    multi_pos = np.bitwise_and(predicted_results, binary_label)
+    multi_pos = multi_pos.astype(bool)
+    label[multi_pos] = predicted[multi_pos]
+    return label
+
 def pack2D(arr_list):
     N = max([x.shape[0] for x in arr_list])
     M = max_nb#max([x.shape[1] for x in arr_list])
