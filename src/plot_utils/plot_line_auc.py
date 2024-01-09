@@ -4,9 +4,9 @@ import matplotlib
 
 # Data
 x = ['0.3', '0.4', '0.5']
-y1 = [0.811, 0.808, 0.791]
-y2 = [0.819, 0.817, 0.804]
-y3 = [0.834, 0.830, 0.819]
+y1 = [0.819, 0.819, 0.817]
+y2 = [0.844, 0.842, 0.834]
+# y3 = [0.834, 0.830, 0.819]
 # x = ['0.4']
 # y1 = [0.844]
 # y2 = [0.829]
@@ -27,17 +27,19 @@ bar_width = 0.2
 index = np.arange(len(x_numeric))
 
 # Create the bar plots
-ax.plot(x, y1,'xb-', label='Baseline model')
-ax.plot(x, y2,'xr-', label='Pure Transformer backbone')
-ax.plot(x, y3,'xg-', label='Transformer backbone + graph network')
+ax.plot(x, y1,'x-', label='Single-task model')
+ax.plot(x, y2,'x-', label='Multi-task model')
+# ax.plot(x, y1,'x-', label='Baseline model')
+# ax.plot(x, y2,'x-', label='Pure Transformer backbone')
+# ax.plot(x, y3,'x-', label='Transformer backbone + graph network')
 
 # Set labels, title, and legend
 ax.set_xlabel('Threshold')
 ax.set_ylabel('AUC')
-ax.set_title('AUC under both-new setting (KIKD)')
+ax.set_title('AUC of different models')
 ax.set_xticks(index)
 ax.set_xticklabels(x_numeric)
-ax.set_ylim(0.790, 0.850)
+ax.set_ylim(0.8, 0.9)
 ax.legend(fontsize=12)
 
 # Show the plot

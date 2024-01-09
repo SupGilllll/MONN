@@ -4,9 +4,9 @@ import matplotlib
 
 # Data
 x = ['0.3', '0.4', '0.5']
-y1 = [1.768, 1.777, 1.790]
-y2 = [1.774, 1.835, 1.826]
-y3 = [1.819, 1.820, 1.861]
+y1 = [1.661, 1.649, 1.694]
+y2 = [1.649, 1.632, 1.699]
+# y3 = [1.819, 1.820, 1.861]
 # x = ['0.4']
 # y1 = [1.706]
 # y2 = [1.705]
@@ -30,17 +30,19 @@ bar_width = 0.2
 index = np.arange(len(x_numeric))
 
 # Create the bar plots
-ax.plot(x, y1,'xb-', label='Baseline model')
-ax.plot(x, y2,'xr-', label='Pure Transformer backbone')
-ax.plot(x, y3,'xg-', label='Transformer backbone + graph network')
+ax.plot(x, y1,'x-', label='Single-task model')
+ax.plot(x, y2,'x-', label='Multi-task model')
+# ax.plot(x, y1,'xb-', label='Baseline model')
+# ax.plot(x, y2,'xr-', label='Pure Transformer backbone')
+# ax.plot(x, y3,'xg-', label='Transformer backbone + graph network')
 
 # Set labels, title, and legend
 ax.set_xlabel('Threshold')
 ax.set_ylabel('RMSE')
-ax.set_title('RMSE under both-new setting (KIKD)')
+ax.set_title('RMSE of different models')
 ax.set_xticks(index)
 ax.set_xticklabels(x_numeric)
-ax.set_ylim(1.75, 1.9)
+ax.set_ylim(1.5, 1.8)
 ax.legend(fontsize=12)
 
 # Show the plot
