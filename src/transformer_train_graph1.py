@@ -12,7 +12,7 @@ from sklearn.metrics import roc_auc_score
 import optuna
 
 from transformer_utils import *
-from transformer_model_binary_interaction import *
+from transformer_model_graph import *
 
 # no RNN
 #train and evaluate
@@ -30,6 +30,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
     pytorch_total_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
     print('total num params', pytorch_total_params)
 
+    criterion1 = nn.MSELoss()
     criterion2 = Masked_BCELoss()
 
     # optimizer = optim.Adam(net.parameters(), lr=lr, amsgrad=True)
@@ -71,6 +72,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
             print('learning rate:', param_group['lr'])
 
         total_loss = 0
+        affinity_loss = 0
+        pairwise_loss = 0
 
         for i in range(math.ceil(len(train_data[0])/batch_size)):
             if i % 20 == 0:
@@ -84,37 +87,44 @@ def train_and_eval(train_data, valid_data, test_data, params):
             inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
             compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
+            affinity_label = torch.FloatTensor(affinity_label).cuda()
             pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
             optimizer.zero_grad()
-            pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
                                                nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
                                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
 
-            loss = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
+            loss_aff = criterion1(affinity_pred, affinity_label)
+            loss_pairwise = criterion2(pairwise_pred, pairwise_label, pairwise_mask, compound_mask, protein_mask)
+            # loss = loss_aff + 0.1 * loss_pairwise
+            loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
+            # print("training stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
+            affinity_loss += float(loss_aff.data*actual_batch_size)
+            pairwise_loss += float(loss_pairwise.data*actual_batch_size)
 
             loss.backward()
             nn.utils.clip_grad_norm_(net.parameters(), 5)
             optimizer.step()
 
         
-        loss_list = [total_loss]
-        loss_name = ['total loss']
+        loss_list = [total_loss, affinity_loss, pairwise_loss]
+        loss_name = ['total loss', 'affinity loss', 'pairwise loss']
         print_loss = [loss_name[i] + ' ' + str(round(loss_list[i] / float(len(train_data[0])), 6)) for i in range(len(loss_name))]
         print('epoch:', epoch, 'training loss', ' '.join(print_loss))
 
-        perf_name = ['avg pairwise AUC', 'fold AUC']
+        perf_name = ['RMSE', 'Pearson', 'Spearman', 'avg pairwise AUC', 'fold AUC']
 
-        valid_performance, _, _, total_loss_val = test(net, valid_data, batch_size)
-        loss_list_val = [total_loss_val]
+        valid_performance, _, _, _, _, total_loss_val, affinity_loss_val, pairwise_loss_val = test(net, valid_data, batch_size)
+        loss_list_val = [total_loss_val, affinity_loss_val, pairwise_loss_val]
         print_loss = [loss_name[i] + ' ' + str(round(loss_list_val[i] / float(len(valid_data[0])), 6)) for i in range(len(loss_name))]
         print('epoch:', epoch, 'validation loss', ' '.join(print_loss))
         
         if (1 + epoch) % 5 == 0:
-            train_performance, _, _, _ = test(net, train_data, batch_size)
+            train_performance, _, _, _, _, _, _, _ = test(net, train_data, batch_size)
             print_perf = [perf_name[i] + ' ' + str(round(train_performance[i], 6)) for i in range(len(perf_name))]
             print('train', len(train_data[0]), ' '.join(print_perf))
         print_perf = [perf_name[i] + ' ' + str(round(valid_performance[i], 6)) for i in range(len(perf_name))]
@@ -122,7 +132,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
 
         if valid_performance[0] < min_rmse:
             min_rmse = valid_performance[0]
-            test_performance, interaction_label, interaction_pred, _ = test(net, test_data, batch_size)
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred, _, _, _ = test(net, test_data, batch_size)
         print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
         print('test ', len(test_data[0]), ' '.join(print_perf))
 
@@ -132,15 +142,20 @@ def train_and_eval(train_data, valid_data, test_data, params):
             scheduler.step()
 
     print('Finished Training')
-    return test_performance, interaction_label, interaction_pred
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred
 
 
 def test(net, test_data, batch_size):
     net.eval()
     pairwise_auc_list = []
+    aff_pred = np.empty([0], dtype=np.float32)
+    aff_label = np.empty([0], dtype=np.float32)
     interaction_pred = np.empty([0], dtype=np.float32)
     interaction_label = np.empty([0], dtype=np.int32)
     total_loss = 0
+    affinity_loss = 0
+    pairwise_loss = 0
+    criterion1 = nn.MSELoss()
     criterion2 = Masked_BCELoss()
     with torch.no_grad():
         for i in range(math.ceil(len(test_data[0])/batch_size)):
@@ -152,16 +167,23 @@ def test(net, test_data, batch_size):
             inputs = [input_vertex, input_edge, input_atom_adj, input_bond_adj, input_num_nbs, input_seq]
             compound, edge, atom_adj, bond_adj, protein, nbs_mask, compound_mask, protein_mask = batch_data_process_transformer_graph(inputs)
 
+            l_affinity_label = torch.FloatTensor(affinity_label).cuda()
             l_pairwise_mask = torch.FloatTensor(pairwise_mask).cuda()
             l_pairwise_label = torch.FloatTensor(pad_label_2d(pairwise_label, compound, protein)).cuda()
 
-            pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
+            affinity_pred, pairwise_pred = net(src = protein, tgt = compound, edge = edge, atom_adj = atom_adj, bond_adj = bond_adj,
                                                nbs_mask = nbs_mask, pids = pids, src_key_padding_mask = protein_mask, 
                                                tgt_key_padding_mask = compound_mask, memory_key_padding_mask = protein_mask)
             
-            loss = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
+            loss_aff = criterion1(affinity_pred, l_affinity_label)
+            loss_pairwise = criterion2(pairwise_pred, l_pairwise_label, l_pairwise_mask, compound_mask, protein_mask)
+            # loss = loss_aff + 0.1 * loss_pairwise
+            loss = loss_weight * loss_aff + (1 - loss_weight) * loss_pairwise
+            # print("test stage non-zero count", torch.count_nonzero(pairwise_pred >= 0.5), torch.count_nonzero(l_pairwise_label))
 
             total_loss += float(loss.data*actual_batch_size)
+            affinity_loss += float(loss_aff.data*actual_batch_size)
+            pairwise_loss += float(loss_pairwise.data*actual_batch_size)
             
             vertex_mask = 1 - compound_mask.float()
             seq_mask = 1 - protein_mask.float()
@@ -187,11 +209,14 @@ def test(net, test_data, batch_size):
                     #     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
                     # except ValueError:
                     #     pass
+            aff_pred = np.append(aff_pred, affinity_pred.cpu().detach().numpy().reshape(-1))
+            aff_label = np.append(aff_label, affinity_label.reshape(-1))
+    rmse_value, pearson_value, spearman_value = reg_scores(aff_label, aff_pred)
     pairwise_auc_score = np.mean(pairwise_auc_list)
     # fold_auc_score = roc_auc_score(interaction_label, interaction_pred)
 
-    test_performance = [pairwise_auc_score, 0]
-    return test_performance, interaction_label, interaction_pred, total_loss
+    test_performance = [rmse_value, pearson_value, spearman_value, pairwise_auc_score, 0]
+    return test_performance, aff_label, aff_pred, interaction_label, interaction_pred, total_loss, affinity_loss, pairwise_loss
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
@@ -292,7 +317,7 @@ def main(args):
             valid_data = data_from_index(data_pack, valid_idx)
             test_data = data_from_index(data_pack, test_idx)
 
-            test_performance, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
+            test_performance, aff_label, aff_pred, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
             # total_interaction_label = np.append(total_interaction_label, interaction_label)
             # total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
             rep_all_list.append(test_performance)
@@ -309,11 +334,11 @@ def main(args):
 
     print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')
     print('all repetitions done')
-    print('print all stats: avg pairwise AUC, fold AUC')
+    print('print all stats: RMSE, Pearson, Spearman, avg pairwise AUC, fold AUC')
     print('mean', np.mean(rep_all_list, axis=0))
     print('std', np.std(rep_all_list, axis=0))
     print('==============')
-    print('print avg stats: avg pairwise AUC, fold AUC')
+    print('print avg stats:  RMSE, Pearson, Spearman, avg pairwise AUC, fold AUC')
     print('mean', np.mean(rep_avg_list, axis=0))
     print('std', np.std(rep_avg_list, axis=0))
     # np.save('/data/zhao/MONN/results/1227/binary-class/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)

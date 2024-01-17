@@ -170,7 +170,7 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 0)
+    parser.add_argument('--cuda_device', type = int, default = 1)
     parser.add_argument('--measure', type = str, default = 'ALL')
     parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.4)
@@ -197,7 +197,6 @@ def parse_args():
 
 def main(args):     
     setup_seed()
-
     torch.cuda.set_device(args.cuda_device)
     measure = args.measure  # IC50 or KIKD
     setting = args.setting   # new_compound, new_protein or new_new
@@ -256,6 +255,7 @@ def main(args):
         fold_score_list = []
 
         for a_fold in range(n_fold):
+            setup_seed()
             fold_start_time = time.time()
             print('repeat', a_rep+1, 'fold', a_fold+1, 'begin')
             train_idx, valid_idx, test_idx = train_idx_list[a_fold], valid_idx_list[a_fold], test_idx_list[a_fold]

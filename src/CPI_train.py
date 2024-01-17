@@ -134,8 +134,8 @@ def test(net, test_data, batch_size):
                     pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
                     pairwise_label_i = pairwise_label[j].reshape(-1)
                     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
-                    interaction_pred = np.append(interaction_pred, pairwise_pred_i)
-                    interaction_label = np.append(interaction_label, pairwise_label_i)
+                    # interaction_pred = np.append(interaction_pred, pairwise_pred_i)
+                    # interaction_label = np.append(interaction_label, pairwise_label_i)
                     # pocket_area_list = pocket_area_dict[pdbids[j]]['pocket_in_uniprot_seq']
                     # pairwise_pred_i = pairwise_pred[j, :num_vertex, pocket_area_list].cpu().detach().numpy().reshape(-1)
                     # pairwise_label_i = pairwise_label[j][:, pocket_area_list].reshape(-1)
@@ -160,8 +160,8 @@ def test(net, test_data, batch_size):
 
 
 if __name__ == "__main__":
-    torch.cuda.set_device(0)
     setup_seed()
+    torch.cuda.set_device(0)
     os.chdir('/data/zhao/MONN/src')
     # measure = 'KIKD'  # IC50 or KIKD
     # setting = 'new_new'   # new_compound, new_protein or new_new
@@ -226,6 +226,7 @@ if __name__ == "__main__":
         total_interaction_pred = np.empty([0], dtype=np.float32)
 
         for a_fold in range(n_fold):
+            setup_seed()
             fold_start_time = time.time()
             print('repeat', a_rep+1, 'fold', a_fold+1, 'begin')
             train_idx, valid_idx, test_idx = train_idx_list[a_fold], valid_idx_list[a_fold], test_idx_list[a_fold]
@@ -236,8 +237,8 @@ if __name__ == "__main__":
             test_data = data_from_index(data_pack, test_idx)
 
             test_performance, aff_label, aff_pred, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params, batch_size, n_epoch)
-            total_interaction_label = np.append(total_interaction_label, interaction_label)
-            total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
+            # total_interaction_label = np.append(total_interaction_label, interaction_label)
+            # total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
             rep_all_list.append(test_performance)
             fold_score_list.append(test_performance)
             print('-'*30)
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         rep_avg_list.append(np.mean(fold_score_list, axis=0))
         # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
         print("========== Whole AUC ==========")
-        print("Score: ", roc_auc_score(total_interaction_label, total_interaction_pred))
+        # print("Score: ", roc_auc_score(total_interaction_label, total_interaction_pred))
         print('==============')
 
     print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')

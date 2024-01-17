@@ -5,7 +5,9 @@ import matplotlib
 # Data
 x = ['0.3', '0.4', '0.5']
 y1 = [0.832, 0.824, 0.832]
-y2 = [0.809, 0.809, 0.809]
+y2 = [0.844, 0.841, 0.838]
+# y1 = [0.832, 0.824, 0.832]
+# y2 = [0.809, 0.809, 0.809]
 # x = ['0.4']
 # y1 = [0.844]
 # y2 = [0.829]
@@ -28,6 +30,8 @@ bar_width = 0.2
 index = np.arange(len(x_numeric))
 
 # Create the bar plots
+# ax.bar(index - bar_width / 2, y1, bar_width, label='Whole sequence', align='center', color=colors1)
+# ax.bar(index + bar_width / 2, y2, bar_width, label='Pocket area', align='center', color=colors2)
 ax.bar(index - bar_width / 2, y1, bar_width, label='Whole sequence', align='center', color=colors1)
 ax.bar(index + bar_width / 2, y2, bar_width, label='Pocket area', align='center', color=colors2)
 
