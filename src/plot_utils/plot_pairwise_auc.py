@@ -1,42 +1,27 @@
+import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib
-
+import pandas as pd
+plt.rcParams.update({'font.size': 10}) 
 # Sample data
 x = ['0.3', '0.4', '0.5']
-y1 = [0.858, 0.855, 0.845]
-y2 = [0.828, 0.828, 0.826]
+y1 = [0.839, 0.822, 0.820]
+y2 = [0.846, 0.842, 0.842]
+# y3 = [0.803, 0.808, 0.806]
+# y1 = [0.810, 0.793, 0.792]
+# y2 = [0.835, 0.833, 0.832]
 
-cmap = matplotlib.colormaps.get_cmap('gist_earth')
-colors1 = [cmap(0.25)]
-colors2 = [cmap(0.5)]
+# Creating a DataFrame for Seaborn
+df = pd.DataFrame({'x': x * 2, 'y': y1 + y2, 'Models': ['MONN']*len(y1) + ['Proposed model']*len(y2)})
+# df = pd.DataFrame({'x': x * 3, 'y': y1 + y2 + y3, 'Models': ['MONN']*len(y1) + ['Proposed model (binary)']*len(y2) + ['Proposed model (multi-class)']*len(y3)})
 
-# Convert x to numeric values for plotting
-x_numeric = [float(val) for val in x]
+# Create the bar plot with the custom palette
+sns.barplot(x='x', y='y', hue='Models', data=df, palette='rocket')
 
-# Create a figure and axis object
-fig, ax = plt.subplots()
+# Customizing the plot
+# plt.title('Performance comparison of non-covalent interaction prediction (pocket region)', pad=20, fontsize=10)
+plt.title('Performance comparison of non-covalent interaction prediction', pad=20, fontsize=10)
+plt.xlabel('Threshold', fontsize=12)
+plt.ylabel('AUC', fontsize=12)
+plt.ylim(0.75, 0.9)
 
-# Set the width of the bars
-bar_width = 0.3
-
-# Create an array of indices for the x-axis locations
-index = np.arange(len(x_numeric))
-
-# Create the bar plots
-# ax.bar(index - bar_width / 2, y1, bar_width, label='Whole sequence', align='center', color=colors1)
-# ax.bar(index + bar_width / 2, y2, bar_width, label='Pocket area', align='center', color=colors2)
-ax.bar(index - bar_width / 2, y1, bar_width, label='Whole sequence', align='center', color=colors1)
-ax.bar(index + bar_width / 2, y2, bar_width, label='Pocket area', align='center', color=colors2)
-
-# Set labels, title, and legend
-ax.set_xlabel('Threshold')
-ax.set_ylabel('AUC')
-ax.set_title('Graph Transformer Model')
-ax.set_xticks(index)
-ax.set_xticklabels(x_numeric)
-ax.set_ylim(0.73, 0.85)
-ax.legend(fontsize=12)
-
-# Show the plot
-plt.savefig('plot.png')
+plt.savefig('plot.png', bbox_inches = 'tight')

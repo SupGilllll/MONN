@@ -21,27 +21,27 @@ import pickle
 
 def density_plot(prop_list1, prop_list2, prop_list3):
     # sns.displot(prop_list, kind="kde")
-    
-    sns.displot(prop_list1, label='interaction sites')
+    sns.color_palette("deep")
+    sns.displot(prop_list1, label='Ligand binding sites in protein sequences', color=sns.xkcd_rgb['nice blue'])
     plt.xlabel('Proportion')
     plt.ylabel('Count')
-    plt.title('Distribution Plot')
+    plt.title('Distribution plot')
     plt.legend()
     plt.savefig('plot1.png', bbox_inches='tight')
 
     plt.cla()
-    sns.displot(prop_list2, label='pocket area')
+    sns.displot(prop_list2, label='Pockets in protein sequences', color=sns.xkcd_rgb['nice blue'])
     plt.xlabel('Proportion')
     plt.ylabel('Count')
-    plt.title('Distribution Plot')
+    plt.title('Distribution plot')
     plt.legend()
     plt.savefig('plot2.png', bbox_inches='tight')
 
     plt.cla()
-    sns.displot(prop_list3, label='surface area')
+    sns.displot(prop_list3, label='Surface residues in protein sequences', color=sns.xkcd_rgb['nice blue'])
     plt.xlabel('Proportion')
     plt.ylabel('Count')
-    plt.title('Distribution Plot')
+    plt.title('Distribution plot')
     plt.legend()
     plt.savefig('plot3.png', bbox_inches='tight')
     

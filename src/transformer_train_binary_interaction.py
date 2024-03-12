@@ -138,8 +138,8 @@ def train_and_eval(train_data, valid_data, test_data, params):
 def test(net, test_data, batch_size):
     net.eval()
     pairwise_auc_list = []
-    interaction_pred = np.empty([0], dtype=np.float32)
-    interaction_label = np.empty([0], dtype=np.int32)
+    accumulated_interaction_pred = []
+    accumulated_interaction_label = []
     total_loss = 0
     criterion2 = Masked_BCELoss()
     with torch.no_grad():
@@ -172,8 +172,8 @@ def test(net, test_data, batch_size):
                     pairwise_pred_i = pairwise_pred[j, :num_vertex, :num_residue].cpu().detach().numpy().reshape(-1)
                     pairwise_label_i = pairwise_label[j].reshape(-1)
                     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
-                    # interaction_pred = np.append(interaction_pred, pairwise_pred_i)
-                    # interaction_label = np.append(interaction_label, pairwise_label_i)
+                    # accumulated_interaction_pred.append(pairwise_pred_i)
+                    # accumulated_interaction_label.append(pairwise_label_i)
                     # pocket_area_list = pocket_area_dict[pdbids[j]]['pocket_in_uniprot_seq']
                     # pairwise_pred_i = pairwise_pred[j, :num_vertex, pocket_area_list].cpu().detach().numpy().reshape(-1)
                     # pairwise_label_i = pairwise_label[j][:, pocket_area_list].reshape(-1)
@@ -187,6 +187,10 @@ def test(net, test_data, batch_size):
                     #     pairwise_auc_list.append(roc_auc_score(pairwise_label_i, pairwise_pred_i))
                     # except ValueError:
                     #     pass
+    # interaction_pred = np.concatenate(accumulated_interaction_pred)
+    # interaction_label = np.concatenate(accumulated_interaction_label)
+    interaction_pred = np.empty([0])
+    interaction_label = np.empty([0])
     pairwise_auc_score = np.mean(pairwise_auc_list)
     # fold_auc_score = roc_auc_score(interaction_label, interaction_pred)
 
@@ -195,33 +199,34 @@ def test(net, test_data, batch_size):
 
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Pytorch Training Script')
-    parser.add_argument('--cuda_device', type = int, default = 1)
+    parser.add_argument('--cuda_device', type = int, default = 0)
     parser.add_argument('--measure', type = str, default = 'ALL')
     parser.add_argument('--setting', type = str, default = 'new_new')
     parser.add_argument('--clu_thre', type = float, default = 0.4)
     parser.add_argument('--embedding', type = str, default = 'blosum62')
-    parser.add_argument('--activation', type = str, default = 'gelu')
-    parser.add_argument('--optimizer', type = str, default = 'Adam')
-    parser.add_argument('--scheduler', type = str, default = 'none')
+    parser.add_argument('--activation', type = str, default = 'elu')
+    parser.add_argument('--optimizer', type = str, default = 'RAdam')
+    parser.add_argument('--scheduler', type = str, default = 'StepLR_10')
     parser.add_argument('--n_rep', type = int, default = 1)
-    parser.add_argument('--epochs', type = int, default = 15)
+    parser.add_argument('--epochs', type = int, default = 30)
     parser.add_argument('--batch_size', type = int, default = 32)
     parser.add_argument('--lr', type = float, default = 8e-4)
     parser.add_argument('--pos_encoding', type = str, default = 'none')
     parser.add_argument('--encoder_layers', type = int, default = 2)
-    parser.add_argument('--decoder_layers', type = int, default = 3)
+    parser.add_argument('--decoder_layers', type = int, default = 4)
     # parser.add_argument('--d_encoder', type=int, default=20)
     parser.add_argument('--d_decoder', type = int, default = 82)
-    parser.add_argument('--d_model', type = int, default = 256)
-    parser.add_argument('--dim_feedforward', type = int, default = 512)
+    parser.add_argument('--d_model', type = int, default = 224)
+    parser.add_argument('--dim_feedforward', type = int, default = 448)
     parser.add_argument('--nhead', type = int, default = 4)
     parser.add_argument('--loss_weight', type = float, default = 0.7)
+    parser.add_argument('--random_seed', type = int, default = 42)
 
     args = parser.parse_args()
     return args
 
 def main(args):     
-    setup_seed()
+    setup_seed(args.random_seed)
     torch.cuda.set_device(args.cuda_device)
     measure = args.measure  # IC50 or KIKD
     setting = args.setting   # new_compound, new_protein or new_new
@@ -278,8 +283,8 @@ def main(args):
         # load data
         data_pack, train_idx_list, valid_idx_list, test_idx_list = load_data(measure, setting, clu_thre, n_fold)
         fold_score_list = []
-        total_interaction_label = np.empty([0], dtype=np.int32)
-        total_interaction_pred = np.empty([0], dtype=np.float32)
+        accumulated_interaction_label = []
+        accumulated_interaction_pred = []
 
         for a_fold in range(n_fold):
             setup_seed()
@@ -293,12 +298,14 @@ def main(args):
             test_data = data_from_index(data_pack, test_idx)
 
             test_performance, interaction_label, interaction_pred = train_and_eval(train_data, valid_data, test_data, params)
-            # total_interaction_label = np.append(total_interaction_label, interaction_label)
-            # total_interaction_pred = np.append(total_interaction_pred, interaction_pred)
+            # accumulated_interaction_label.append(interaction_label)
+            # accumulated_interaction_pred.append(interaction_pred)
             rep_all_list.append(test_performance)
             fold_score_list.append(test_performance)
             print('-'*30)
             print(f'repeat {a_rep + 1}, fold {a_fold + 1}, spend {format((time.time() - fold_start_time) / 3600.0, ".3f")} hours')
+        # total_interaction_label = np.concatenate(accumulated_interaction_label)
+        # total_interaction_pred = np.concatenate(accumulated_interaction_pred)
         print(f'repeat {a_rep + 1}, spend {format((time.time() - rep_start_time) / 3600.0, ".3f")}')
         print('fold avg performance', np.mean(fold_score_list, axis=0))
         rep_avg_list.append(np.mean(fold_score_list, axis=0))

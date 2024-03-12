@@ -1,36 +1,27 @@
+import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
-
+plt.rcParams.update({'font.size': 12}) 
 # Sample data
-x_values = ['0.3', '0.4', '0.5']
-# correlation_values1 = [0.50981112, 0.49461565, 0.46512096]
-rmse_values1 = [1.731, 1.758, 1.766]
-# correlation_values2 = [0.5143357, 0.49600565, 0.4739919]
-rmse_values2 = [1.657, 1.679, 1.698]
+x = ['0.3', '0.4', '0.5']
+y1 = [1.574, 1.613, 1.594]
+y2 = [1.649, 1.651, 1.673]
+# y3 = [1.658, 1.678, 1.696]
 
-# Create a figure and axis
-fig, ax = plt.subplots()
+# Creating a DataFrame for Seaborn
+df = pd.DataFrame({'x': x * 2, 'y': y1 + y2, 'Models': ['MONN']*len(y1) + ['Proposed model']*len(y2)})
+# df = pd.DataFrame({'x': x * 3, 'y': y1 + y2 + y3, 'Models': ['MONN']*len(y1) + ['Proposed model (binary)']*len(y2) + ['Proposed model (multi-class)']*len(y3)})
 
-# Create scatterplot for correlation
-# ax.plot(x_values, correlation_values1, marker='o', linestyle='-', color='green', label='Pearson Correlation (original)')
+# Create the bar plot with the custom palette
+sns.barplot(x='x', y='y', hue='Models', data=df, palette='mako')
 
-# Create scatterplot for RMSE
-ax.plot(x_values, rmse_values1, marker='o', linestyle='-', color='green', label='RMSE (proposed model)')
+# Customizing the plot
+# plt.title('Performance comparison of binding affinity prediction')
+plt.title('Performance comparison of binding affinity prediction', pad=20)
+plt.xlabel('Threshold')
+plt.ylabel('RMSE')
+plt.ylim(1.4, 1.8)
 
-# Create scatterplot for correlation
-# ax.plot(x_values, correlation_values2, marker='o', linestyle='-', color='purple', label='Pearson Correlation (modified)')
-
-# Create scatterplot for RMSE
-ax.plot(x_values, rmse_values2, marker='o', linestyle='-', color='purple', label='RMSE (baseline model)')
-
-# Set labels and title
-ax.set_xlabel('Threshold')
-ax.set_ylabel('Value')
-# plt.title('Pearson Correlation and RMSE under new-new setting (IC50)')
-plt.title('RMSE under new protein setting (KIKD)')
-# ax.set_xticks(x_values)
-# Add legend
-plt.legend()
-
-# Save the plot as an image file (e.g., PNG, JPEG, SVG, PDF)
+# Show the plot
+plt.tight_layout()
 plt.savefig('plot.png')
-

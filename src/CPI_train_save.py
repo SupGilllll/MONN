@@ -97,6 +97,7 @@ def train_and_eval(train_data, valid_data, test_data, params, batch_size=32, num
         print('valid', len(valid_data[0]), ' '.join(print_perf))
 
         if valid_performance[0] < min_rmse:
+            torch.save(net.state_dict(), f'/data/zhao/MONN/results/240116/transformer/save_model/baseline_{clu_thre}.pth')
             # if valid_performance[-1] > max_auc:
             min_rmse = valid_performance[0]
             #max_auc = valid_performance[-1]
@@ -163,7 +164,7 @@ def test(net, test_data, batch_size):
 
 if __name__ == "__main__":
     setup_seed()
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
     os.chdir('/data/zhao/MONN/src')
     # measure = 'KIKD'  # IC50 or KIKD
     # setting = 'new_new'   # new_compound, new_protein or new_new
@@ -227,7 +228,7 @@ if __name__ == "__main__":
         accumulated_interaction_label = []
         accumulated_interaction_pred = []
 
-        for a_fold in range(n_fold):
+        for a_fold in [1]:
             setup_seed()
             fold_start_time = time.time()
             print('repeat', a_rep+1, 'fold', a_fold+1, 'begin')
@@ -252,7 +253,7 @@ if __name__ == "__main__":
         rep_avg_list.append(np.mean(fold_score_list, axis=0))
         # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
         print("========== Whole AUC ==========")
-        # print("Score: ", roc_auc_score(total_interaction_label, total_interaction_pred))
+        print("Score: ", roc_auc_score(total_interaction_label, total_interaction_pred))
         print('==============')
 
     print(f'whole training process spend {format((time.time() - all_start_time) / 3600.0, ".3f")}')
@@ -265,7 +266,7 @@ if __name__ == "__main__":
     print('mean', np.mean(rep_avg_list, axis=0))
     print('std', np.std(rep_avg_list, axis=0))
     print('Hyper-parameters:', [para_names[i] + ':'+str(params[i]) for i in range(7)])
-    # np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
-    # np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
+    np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
+    np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
     # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
     # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)

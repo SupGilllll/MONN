@@ -448,9 +448,9 @@ class Masked_CrossEntropyLoss(nn.Module):
     def __init__(self, label_weight = 1.4e-4):
         super(Masked_CrossEntropyLoss, self).__init__()
         # self.weight = torch.Tensor([label_weight, 5.8e-1, 1.6, 3.8e-1, 7.3e-1, 3.5, 1.6, 2.2e+01]).cuda()
-        # self.weight = torch.Tensor([1.47e-4, 5.86e-1, 1.81, 4.69e-1, 8.3e-1, 3.85, 1.26, 2.55e+01]).cuda() #new weight1 from whole set
+        self.weight = torch.Tensor([1.47e-4, 5.86e-1, 1.81, 4.69e-1, 8.3e-1, 3.85, 1.26, 2.55e+01]).cuda() #new weight1 from whole set
         # self.weight = torch.Tensor([1.47e-3, 5.86, 1.81e+01, 4.69, 8.3, 3.85e+01, 1.26e+01, 2.55e+02]).cuda() #new weight2 from whole set * 10
-        self.weight = torch.Tensor([1e-4, 4.00e-1, 1.23, 3.2e-1, 5.67e-1, 2.63, 8.59e-1, 1.74e+01]).cuda() #new weight3 1 / freq / 1e4
+        # self.weight = torch.Tensor([1e-4, 4.00e-1, 1.23, 3.2e-1, 5.67e-1, 2.63, 8.59e-1, 1.74e+01]).cuda() #new weight3 1 / freq / 1e4
         self.criterion = nn.CrossEntropyLoss(reduction = 'none', weight = self.weight)
         # self.criterion = nn.CrossEntropyLoss(reduction = 'none')
     def forward(self, pred, label, pairwise_mask, vertex_mask, seq_mask):

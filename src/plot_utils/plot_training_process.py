@@ -52,7 +52,7 @@ def plot_data(training_loss, validation_loss, rmse, auc):
     # # Plotting AUC
     # ax.plot(epochs, auc[:30], label='AUC')
     
-    ax.set_ylim(0, 20)
+    ax.set_ylim(0, 60)
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title('Loss Curve')
@@ -62,10 +62,10 @@ def plot_data(training_loss, validation_loss, rmse, auc):
 
 
 # log_file_path = '../../results/0724/transformer_base_seed42/KIKD_new_protein_0.3.log'
-log_file_path = '/data/zhao/MONN/results/1218/new_weight/new_weight3_epochs30.log'
+log_file_path = '/data/zhao/MONN/results/240116/transformer/ALL_new_new_0.4_epochs30.log'
 # total_loss, affinity_loss, pairwise_loss, rmse, auc = extract_numbers_from_log_file(log_file_path)
-training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 7)
-
+training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 3)
+print(training_loss)
 # print(training_loss)
 # print(validation_loss)
 # print(rmse)
