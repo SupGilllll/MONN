@@ -1,14 +1,13 @@
 import pickle
 import os
-os.chdir('/data/zhao/MONN/create_dataset')
 
-with open('./out4_interaction_dict', 'rb') as f:
+with open('../out4_interaction_dict', 'rb') as f:
     data = pickle.load(f)
 
 def process_dssp(pid):
     seq_dict = {}
     id_dict = {}
-    with open(f'./dssp_files/{pid}.dssp', "r") as f:
+    with open(f'../dssp_files/{pid}.dssp', "r") as f:
         lines = f.readlines()
     p = 0
     while lines[p].strip()[0] != "#":

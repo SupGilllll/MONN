@@ -1,7 +1,7 @@
 import pickle
 import os 
 import numpy as np
-os.chdir('/data/zhao/MONN/create_dataset')
+
 # seen = set()
 # dup = []
 # with open('./out1.6_uniprot_uniprot_mapping.tab') as f:
@@ -205,7 +205,6 @@ os.chdir('/data/zhao/MONN/create_dataset')
 
 # import pickle 
 # import os
-# os.chdir('/data/zhao/MONN/create_dataset')
 # with open('./out4_interaction_dict', 'rb') as f:
 #     dict = pickle.load(f)
 # print('happy')
@@ -214,7 +213,6 @@ os.chdir('/data/zhao/MONN/create_dataset')
 #         f.write(line + '\n')
 
 # import os
-# os.chdir('/data/zhao/MONN/create_dataset')
 # from Bio.PDB import PDBParser
 # def get_mol_from_ligandpdb(ligand):
 # 	if not os.path.exists('./pdb_files/'+ligand+'_ideal.pdb'):
@@ -242,7 +240,6 @@ os.chdir('/data/zhao/MONN/create_dataset')
 
 # import pickle 
 # import os
-# os.chdir('/data/zhao/MONN/create_dataset')
 # with open('./out5_pocket_dict', 'rb') as f:
 #     dict = pickle.load(f)
 # print('happy happy happy')

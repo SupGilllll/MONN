@@ -1,6 +1,6 @@
 import pickle
 
-# with open('/data/zhao/MONN/create_dataset/out7_final_pairwise_interaction_dict', 'rb') as f:
+# with open('./out7_final_pairwise_interaction_dict', 'rb') as f:
 #     interaction_dict = pickle.load(f)
 # int_types = set()
 # for value in interaction_dict.values():
@@ -11,7 +11,7 @@ import pickle
 # for type in int_types:
 #     print(type)
 
-with open('/data/zhao/MONN/create_dataset/out4_interaction_dict', 'rb') as f:
+with open('./out4_interaction_dict', 'rb') as f:
     interaction_dict = pickle.load(f)
 int_types = set()
 for value in interaction_dict.values():

@@ -1,10 +1,9 @@
 import os 
 import re
 
-os.chdir('/data/zhao/MONN/create_dataset')
 def get_pdbid_list():
 	pdbid_list = []
-	with open('./out2_pdbbind_all_datafile.tsv') as f:
+	with open('../out2_pdbbind_all_datafile.tsv') as f:
 		for line in f.readlines():
 			pdbid_list.append(line.strip().split('\t')[0])
 	print('pdbid_list',len(pdbid_list))

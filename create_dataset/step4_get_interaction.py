@@ -3,7 +3,6 @@ from Bio.PDB import PDBParser, Selection
 from Bio.PDB.Polypeptide import three_to_one
 import os
 import pickle
-# os.chdir('/data/zhao/MONN/create_dataset')
 from Bio import BiopythonWarning
 import warnings
 

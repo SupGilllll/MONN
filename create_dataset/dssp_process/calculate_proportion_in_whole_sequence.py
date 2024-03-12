@@ -82,11 +82,11 @@ def calculate_surface(cid_list):
         prop_list.append(hit_cnt / res_cnt)
     return prop_list
 
-with open('/data/zhao/MONN/create_dataset/out4_interaction_dict', 'rb') as f:
+with open('../out4_interaction_dict', 'rb') as f:
     int_dict = pickle.load(f)
-with open('/data/zhao/MONN/create_dataset/out5_pocket_dict', 'rb') as f:
+with open('../out5_pocket_dict', 'rb') as f:
     pocket_dict = pickle.load(f)
-with open('/data/zhao/MONN/create_dataset/out3_surface_dict', 'rb') as f:
+with open('../out3_surface_dict', 'rb') as f:
     surface_dict = pickle.load(f)
 
 cid_list = list(int_dict.keys())
