@@ -36,9 +36,8 @@ Run "step2_get_datafile.py" and the code will output "out2_pdbbind_all_datafile.
 
 
 Step3: calculate the non-covalent interactions between proteins and ligands
-Extract the non-covalent interactions by using PLIP (https://github.com/ssalentin/plip/)
-Put the result files in ./plip_result_all_set/
-Note: command for using PLIP: python plipcmd.py -f xxx.pdb -t --name xxx_output
+Run "step3_calculate_interaction.py" and extract the non-covalent interactions by using PLIP (https://github.com/ssalentin/plip/)
+Put the result files in ./plip_results/, put the generated PDB file in ./plip_generated_pdb_files/.
 
 
 Step4: extract the interaction information from PLIP output
