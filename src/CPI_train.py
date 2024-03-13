@@ -164,7 +164,7 @@ def test(net, test_data, batch_size):
 if __name__ == "__main__":
     setup_seed()
     torch.cuda.set_device(0)
-    os.chdir('/data/zhao/MONN/src')
+    # os.chdir('/data/zhao/MONN/src')
     # measure = 'KIKD'  # IC50 or KIKD
     # setting = 'new_new'   # new_compound, new_protein or new_new
     # clu_thre = 0.4  # 0.3, 0.4, 0.5 or 0.6
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
     # with open('../preprocessing/surface_area_dict', 'rb') as f:
     #     surface_area_dict = pickle.load(f)
-    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+    with open('../data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     # print evaluation scheme
     print('Dataset: PDBbind v2021 with measurement', measure)
@@ -265,7 +265,5 @@ if __name__ == "__main__":
     print('mean', np.mean(rep_avg_list, axis=0))
     print('std', np.std(rep_avg_list, axis=0))
     print('Hyper-parameters:', [para_names[i] + ':'+str(params[i]) for i in range(7)])
-    # np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
-    # np.save('/data/zhao/MONN/results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
-    # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
-    # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
+    # np.save('../results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
+    # np.save('../results/240116/baseline/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)

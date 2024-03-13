@@ -25,7 +25,7 @@ def train_and_eval(test_data, params):
                       d_encoder = d_encoder, d_decoder = d_decoder, d_model = d_model,
                       nhead = nhead, num_encoder_layers = num_encoder_layers, activation = activation,
                       num_decoder_layers = num_decoder_layers, dim_feedforward = dim_feedforward).cuda() 
-    net.load_state_dict(torch.load(f'/data/zhao/MONN/results/240116/transformer/save_model/{clu_thre}.pth'))
+    net.load_state_dict(torch.load(f'../results/240116/transformer/save_model/{clu_thre}.pth'))
     net.eval()
     records = []
     pairwise_auc_list = []
@@ -169,7 +169,7 @@ def main(args):
 
             test_data = data_from_index(data_pack, test_idx)
             records = train_and_eval(test_data, params)
-            np.save('/data/zhao/MONN/results/240116/transformer/load_model/records', records)
+            np.save('../results/240116/transformer/load_model/records', records)
             print('-'*30)
             print(f'repeat {a_rep + 1}, fold {a_fold + 1}, spend {format((time.time() - fold_start_time) / 3600.0, ".3f")} hours')
         print(f'repeat {a_rep + 1}, spend {format((time.time() - rep_start_time) / 3600.0, ".3f")}')
@@ -194,14 +194,12 @@ def main(args):
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_auc_list', total_auc_score)
-    # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
-    # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
     return np.mean(rep_all_list, axis=0)[0]
 
 if __name__ == "__main__":
-    os.chdir('/data/zhao/MONN/src')
+    # os.chdir('/data/zhao/MONN/src')
     args = parse_args()
-    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+    with open('../data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
 
     main(args)

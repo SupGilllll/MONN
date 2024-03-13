@@ -141,7 +141,7 @@ def test(net, test_data, batch_size):
 
 if __name__ == "__main__":
     torch.cuda.set_device(0)
-    os.chdir('/data/zhao/MONN/src_p_embed')
+    # os.chdir('/data/zhao/MONN/src_p_embed')
     measure = 'KIKD'  # IC50 or KIKD
     setting = 'new_new'   # new_compound, new_protein or new_new
     clu_thre = 0.3  # 0.3, 0.4, 0.5 or 0.6

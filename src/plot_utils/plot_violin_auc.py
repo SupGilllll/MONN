@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 14}) 
 # Generating mock data
 np.random.seed(0)  # For reproducibility
-errors_threshold_1 = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.3_auc_list.npy')
-errors_threshold_2 = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.4_auc_list.npy')
-errors_threshold_3 = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.5_auc_list.npy')
+errors_threshold_1 = np.load('../../results/240116/transformer/ALL_new_new_thre0.3_auc_list.npy')
+errors_threshold_2 = np.load('../../results/240116/transformer/ALL_new_new_thre0.4_auc_list.npy')
+errors_threshold_3 = np.load('../../results/240116/transformer/ALL_new_new_thre0.5_auc_list.npy')
 
 data_length = len(errors_threshold_1)
 # Creating a DataFrame

@@ -62,7 +62,7 @@ def plot_data(training_loss, validation_loss, rmse, auc):
 
 
 # log_file_path = '../../results/0724/transformer_base_seed42/KIKD_new_protein_0.3.log'
-log_file_path = '/data/zhao/MONN/results/240116/transformer/ALL_new_new_0.4_epochs30.log'
+log_file_path = '../../results/240116/transformer/ALL_new_new_0.4_epochs30.log'
 # total_loss, affinity_loss, pairwise_loss, rmse, auc = extract_numbers_from_log_file(log_file_path)
 training_loss, validation_loss, rmse, auc = extract_numbers_from_log_file(log_file_path, 3)
 print(training_loss)

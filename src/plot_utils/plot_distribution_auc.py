@@ -2,7 +2,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-auc_scores = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.5_auc_list.npy')
+auc_scores = np.load('../../results/240116/transformer/ALL_new_new_thre0.5_auc_list.npy')
 
 # Create the distribution plot
 sns.displot(auc_scores, color='darkred')

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import os
 import pickle
-os.chdir('/data/zhao/MONN/src_p_embed')
+# os.chdir('/data/zhao/MONN/src_p_embed')
 # aa_list = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 # word_dict = defaultdict(lambda: len(word_dict))
 # for aa in aa_list:

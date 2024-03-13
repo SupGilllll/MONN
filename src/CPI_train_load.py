@@ -21,7 +21,7 @@ from CPI_model import *
 def train_and_eval(test_data, params, batch_size=32, num_epoch=30):
     init_A, init_B, init_W = loading_emb(measure, embedding)
     net = Net(init_A, init_B, init_W, params).cuda()
-    net.load_state_dict(torch.load(f'/data/zhao/MONN/results/240116/transformer/save_model/baseline_{clu_thre}.pth'))
+    net.load_state_dict(torch.load(f'../results/240116/transformer/save_model/baseline_{clu_thre}.pth'))
     net.eval()
     records = dict()
     pairwise_auc_list = []
@@ -57,7 +57,7 @@ def train_and_eval(test_data, params, batch_size=32, num_epoch=30):
 if __name__ == "__main__":
     setup_seed()
     torch.cuda.set_device(1)
-    os.chdir('/data/zhao/MONN/src')
+    # os.chdir('/data/zhao/MONN/src')
     measure = 'ALL'  # IC50 or KIKD
     setting = 'new_new'   # new_compound, new_protein or new_new
     clu_thre = 0.4  # 0.3, 0.4, 0.5 or 0.6
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     # with open('../preprocessing/surface_area_dict', 'rb') as f:
     #     surface_area_dict = pickle.load(f)
-    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+    with open('../data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     # print evaluation scheme
     print('Dataset: PDBbind v2021 with measurement', measure)
@@ -129,6 +129,6 @@ if __name__ == "__main__":
 
             test_data = data_from_index(data_pack, test_idx)
             records = train_and_eval(test_data, params, batch_size, n_epoch)
-            np.save('/data/zhao/MONN/results/240116/transformer/load_model/baseline_records', records)
+            np.save('../results/240116/transformer/load_model/baseline_records', records)
             print('-'*30)
             print(f'repeat {a_rep + 1}, fold {a_fold + 1}, spend {format((time.time() - fold_start_time) / 3600.0, ".3f")} hours')

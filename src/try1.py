@@ -6,7 +6,7 @@ import pickle
 import json
 import statistics
 import matplotlib.pyplot as plt
-os.chdir('/data/zhao/MONN/src')
+# os.chdir('/data/zhao/MONN/src')
 # aa_list = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 # word_dict = defaultdict(lambda: len(word_dict))
 # for aa in aa_list:

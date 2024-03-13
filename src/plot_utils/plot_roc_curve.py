@@ -2,12 +2,12 @@ import numpy as np
 from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 
-y_true1 = np.load('/data/zhao/MONN/results/240116/baseline/ALL_new_new_thre0.5_label.npy')
-y_scores1 = np.load('/data/zhao/MONN/results/240116/baseline/ALL_new_new_thre0.5_pred.npy')
-y_true2 = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.5_label.npy')
-y_scores2 = np.load('/data/zhao/MONN/results/240116/transformer/ALL_new_new_thre0.5_pred.npy')
-y_true3 = np.load('/data/zhao/MONN/results/240116/transformer/multi_class/ALL_new_new_thre0.5_label.npy')
-y_scores3 = np.load('/data/zhao/MONN/results/240116/transformer/multi_class/ALL_new_new_thre0.5_pred.npy')
+y_true1 = np.load('../../results/240116/baseline/ALL_new_new_thre0.5_label.npy')
+y_scores1 = np.load('../../results/240116/baseline/ALL_new_new_thre0.5_pred.npy')
+y_true2 = np.load('../../results/240116/transformer/ALL_new_new_thre0.5_label.npy')
+y_scores2 = np.load('../../results/240116/transformer/ALL_new_new_thre0.5_pred.npy')
+y_true3 = np.load('../../results/240116/transformer/multi_class/ALL_new_new_thre0.5_label.npy')
+y_scores3 = np.load('../../results/240116/transformer/multi_class/ALL_new_new_thre0.5_pred.npy')
 # y_true1 = np.array([1,0,0,1])
 # y_scores1 = np.array([1,0,0,1])
 # y_true2 = np.array([1,0,0,1])

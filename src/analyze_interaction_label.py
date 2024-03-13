@@ -3,7 +3,7 @@ import numpy as np
 
 int_types = ['Hydrogen Bonds', 'Water Bridges', 'Hydrophobic Interactions', 'pi-Stacking', 'pi-Cation Interactions', 'Salt Bridges', 'Halogen Bonds']
 map_dict = {int_types[i]: i + 1 for i in range(len(int_types))}
-with open('/data/zhao/MONN/create_dataset/out7_final_pairwise_interaction_dict','rb') as f:
+with open('../create_dataset/out7_final_pairwise_interaction_dict','rb') as f:
     interaction_dict = pickle.load(f)
 
 pdbid_list = []

@@ -289,8 +289,6 @@ def main(args):
     print('std', np.std(rep_avg_list, axis=0))
     # np.save('/data/zhao/MONN/results/1227/binary-class/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
     # np.save('/data/zhao/MONN/results/1227/binary-class/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
-    # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
-    # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
     return np.mean(rep_all_list, axis=0)[0]
 
 def objective(trail):
@@ -305,11 +303,11 @@ def objective(trail):
     return rmse
 
 if __name__ == "__main__":
-    os.chdir('/data/zhao/MONN/src')
+    # os.chdir('/data/zhao/MONN/src')
     args = parse_args()
     # with open('../preprocessing/surface_area_dict', 'rb') as f:
     #     surface_area_dict = pickle.load(f)
-    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+    with open('../data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     
     # st = time.time()

@@ -1,8 +1,8 @@
 import numpy as np
 
-kikd = np.load('/data/zhao/MONN/preprocessing/wlnn_train_list_KIKD.npy').astype(str).tolist()
-ic50 = np.load('/data/zhao/MONN/preprocessing/wlnn_train_list_IC50.npy').astype(str).tolist()
-combined = np.load('/data/zhao/MONN/preprocessing/wlnn_train_list_ALL.npy').astype(str).tolist()
+kikd = np.load('../preprocessing/wlnn_train_list_KIKD.npy').astype(str).tolist()
+ic50 = np.load('../preprocessing/wlnn_train_list_IC50.npy').astype(str).tolist()
+combined = np.load('../preprocessing/wlnn_train_list_ALL.npy').astype(str).tolist()
 
 count1 = 0
 count2 = 0
@@ -17,7 +17,7 @@ print(count1, count2, len(combined))
 pid_dict = {}
 cid_dict = {}
 measure_dict = {}
-with open('/data/zhao/MONN/create_dataset/out2_pdbbind_all_datafile.tsv', 'r') as f:
+with open('../create_dataset/out2_pdbbind_all_datafile.tsv', 'r') as f:
     for line in f.readlines():
         pdbid, pid, cid, _, _, measure, _  = line.strip().split('\t')
         pdbid = str(pdbid)

@@ -131,7 +131,7 @@ def train_and_eval(train_data, valid_data, test_data, params):
         print('valid', len(valid_data[0]), ' '.join(print_perf))
 
         if valid_performance[0] < min_rmse:
-            torch.save(net.state_dict(), f'/data/zhao/MONN/results/240116/transformer/save_model/{clu_thre}.pth')
+            torch.save(net.state_dict(), f'../results/240116/transformer/save_model/{clu_thre}.pth')
             min_rmse = valid_performance[0]
             test_performance, aff_label, aff_pred, interaction_label, interaction_pred, auc_list, _, _, _ = test(net, test_data, batch_size)
         print_perf = [perf_name[i] + ' ' + str(round(test_performance[i], 6)) for i in range(len(perf_name))]
@@ -365,8 +365,6 @@ def main(args):
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_label', total_interaction_label)
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_pred', total_interaction_pred)
     # np.save('/data/zhao/MONN/results/240116/transformer/'+measure+'_'+setting+'_thre'+str(clu_thre)+'_auc_list', total_auc_score)
-    # np.save('CPI_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre)+'_'+'_'.join(map(str,params)), rep_all_list)
-    # np.save('MONN_rep_all_list_'+measure+'_'+setting+'_thre'+str(clu_thre), rep_all_list)
     return np.mean(rep_all_list, axis=0)[0]
 
 def objective(trail):
@@ -381,11 +379,11 @@ def objective(trail):
     return rmse
 
 if __name__ == "__main__":
-    os.chdir('/data/zhao/MONN/src')
+    # os.chdir('/data/zhao/MONN/src')
     args = parse_args()
     # with open('../preprocessing/surface_area_dict', 'rb') as f:
     #     surface_area_dict = pickle.load(f)
-    with open('/data/zhao/MONN/data/pocket_dict', 'rb') as f:
+    with open('../data/pocket_dict', 'rb') as f:
         pocket_area_dict = pickle.load(f)
     
     # st = time.time()
